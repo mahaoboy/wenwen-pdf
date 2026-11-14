@@ -51,3 +51,15 @@ export interface VerifyResult {
   ok: boolean;
   message: string;
 }
+
+export interface CaptchaData {
+  captcha_id: string;
+  image: string;
+}
+
+export interface RegisterOutcome {
+  email: string;
+  verification_required: boolean;
+  smtp_configured: boolean;
+  dev_code: string | null;
+}

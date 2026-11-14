@@ -26,6 +26,17 @@ class Settings(BaseSettings):
 
     allowed_origins_raw: str = "http://localhost:3000"  # 逗号分隔；同源部署（nginx）时 CORS 不生效
 
+    # ===== SMTP（邮箱验证码发信；未配置时注册走开发模式，验证码直接返回页面）=====
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    smtp_from: str = ""  # 发件人，默认取 smtp_user
+    smtp_ssl: bool = True  # True=SMTPS(465)；False=STARTTLS(587)
+
+    # 自动化测试专用：True 时 captcha 响应回显答案。生产必须为 False。
+    captcha_echo: bool = False
+
     @property
     def allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins_raw.split(",") if o.strip()]

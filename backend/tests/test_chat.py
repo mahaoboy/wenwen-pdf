@@ -103,21 +103,6 @@ def _clean_answer_cache():
     _cache.clear()
 
 
-@pytest.fixture
-def client():
-    import uuid
-
-    from fastapi.testclient import TestClient
-
-    from app.main import app
-
-    with TestClient(app) as c:
-        email = f"{uuid.uuid4().hex[:12]}@test.dev"
-        token = c.post("/api/auth/register", json={"email": email, "password": "pass1234"}).json()["access_token"]
-        c.headers = {"Authorization": f"Bearer {token}"}
-        yield c
-
-
 def test_ask_extractive_with_citations(client, stub_embed, seeded_doc):
     """无 DEEPSEEK_API_KEY：抽取式降级，回答摘录原文并带合法引用。"""
     resp = client.post("/api/chat/ask", json={"document_id": seeded_doc, "question": "违约责任"})

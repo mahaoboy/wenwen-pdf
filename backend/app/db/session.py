@@ -14,14 +14,19 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 def ensure_schema() -> None:
-    """轻量迁移：为已存在的 users 表补齐新增列（create_all 不会 ALTER 旧表）。"""
+    """轻量迁移：为已存在的 users 表补齐新增列（create_all 不会 ALTER 旧表）。
+
+    email_verified 回填 1：迁移前注册的存量用户视为已验证，避免被新流程锁死。
+    """
     from sqlalchemy import text
 
     with engine.connect() as conn:
         cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
         if cols and "deepseek_api_key" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN deepseek_api_key VARCHAR(255) NOT NULL DEFAULT ''"))
-            conn.commit()
+        if cols and "email_verified" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 1"))
+        conn.commit()
 
 
 def get_db() -> Generator[Session, None, None]:

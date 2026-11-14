@@ -183,8 +183,9 @@ def test_upload_builds_vector_index(stub_embed):
     with TestClient(app) as client:
         import uuid
 
-        email = f"{uuid.uuid4().hex[:12]}@test.dev"
-        token = client.post("/api/auth/register", json={"email": email, "password": "pass1234"}).json()["access_token"]
+        from tests.helpers import register_verified
+
+        token = register_verified(client)
         headers = {"Authorization": f"Bearer {token}"}
 
         resp = client.post("/api/documents/upload", headers=headers, files={"file": ("c.pdf", make_pdf(), "application/pdf")})

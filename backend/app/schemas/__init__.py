@@ -5,11 +5,35 @@ from pydantic import BaseModel, EmailStr
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+    captcha_id: str
+    captcha_code: str
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    captcha_id: str
+    captcha_code: str
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendRequest(BaseModel):
+    email: EmailStr
+    code: str = ""  # 占位（重发逻辑不使用邮箱验证码）
+    captcha_id: str
+    captcha_code: str
+
+
+class RegisterResponse(BaseModel):
+    email: str
+    verification_required: bool
+    smtp_configured: bool
+    # 开发模式（SMTP 未配置）才返回验证码本身；生产恒为 None
+    dev_code: str | None = None
 
 
 class TokenResponse(BaseModel):

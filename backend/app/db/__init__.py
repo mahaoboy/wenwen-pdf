@@ -22,6 +22,8 @@ class User(Base):
     plan: Mapped[str] = mapped_column(String(32), default="free")  # free / buyout / monthly / yearly
     # BYOK：用户自备 DeepSeek API Key（优先于全局配置；MVP 本地部署明文存储，生产需加密）
     deepseek_api_key: Mapped[str] = mapped_column(String(255), default="")
+    # 邮箱验证：注册后需验证邮箱才能登录；存量用户迁移时回填为已验证
+    email_verified: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     docs: Mapped[list["Document"]] = relationship(back_populates="user")

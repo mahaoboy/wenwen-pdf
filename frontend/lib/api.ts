@@ -1,11 +1,13 @@
 import { clearToken, getToken } from "./auth";
 import type {
   AuthResponse,
+  CaptchaData,
   ChatMessage,
   ChatResponse,
   DocumentItem,
   LlmStatus,
   QuotaInfo,
+  RegisterOutcome,
   VerifyResult,
 } from "./types";
 
@@ -102,18 +104,67 @@ async function request<T>(
 }
 
 export const api = {
-  register(email: string, password: string): Promise<AuthResponse> {
-    return request<AuthResponse>(
+  getCaptcha(): Promise<CaptchaData> {
+    return request<CaptchaData>("/api/auth/captcha", {}, { redirectOn401: false });
+  },
+
+  register(
+    email: string,
+    password: string,
+    captchaId: string,
+    captchaCode: string,
+  ): Promise<RegisterOutcome> {
+    return request<RegisterOutcome>(
       "/api/auth/register",
-      { method: "POST", body: JSON.stringify({ email, password }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+          captcha_id: captchaId,
+          captcha_code: captchaCode,
+        }),
+      },
       { redirectOn401: false },
     );
   },
 
-  login(email: string, password: string): Promise<AuthResponse> {
+  verifyEmail(email: string, code: string): Promise<AuthResponse> {
+    return request<AuthResponse>(
+      "/api/auth/verify-email",
+      { method: "POST", body: JSON.stringify({ email, code }) },
+      { redirectOn401: false },
+    );
+  },
+
+  resendCode(email: string, captchaId: string, captchaCode: string): Promise<RegisterOutcome> {
+    return request<RegisterOutcome>(
+      "/api/auth/resend",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          code: "",
+          captcha_id: captchaId,
+          captcha_code: captchaCode,
+        }),
+      },
+      { redirectOn401: false },
+    );
+  },
+
+  login(email: string, password: string, captchaId: string, captchaCode: string): Promise<AuthResponse> {
     return request<AuthResponse>(
       "/api/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+          captcha_id: captchaId,
+          captcha_code: captchaCode,
+        }),
+      },
       { redirectOn401: false },
     );
   },

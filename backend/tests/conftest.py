@@ -11,3 +11,18 @@ def _isolate_global_llm_key():
     settings.deepseek_api_key = ""
     yield
     settings.deepseek_api_key = old
+
+
+@pytest.fixture()
+def client():
+    """注册一个已验证用户并注入 Authorization 头的测试客户端。"""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        from tests.helpers import register_verified
+
+        token = register_verified(c)
+        c.headers = {"Authorization": f"Bearer {token}"}
+        yield c

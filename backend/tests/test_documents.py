@@ -27,12 +27,9 @@ def client():
 
 
 def _register(client: TestClient) -> str:
-    import uuid
+    from tests.helpers import register_verified
 
-    email = f"{uuid.uuid4().hex[:12]}@test.dev"
-    resp = client.post("/api/auth/register", json={"email": email, "password": "pass1234"})
-    assert resp.status_code == 200, resp.text
-    return resp.json()["access_token"]
+    return register_verified(client)
 
 
 def _auth(token: str) -> dict:

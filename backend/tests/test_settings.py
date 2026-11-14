@@ -5,21 +5,6 @@ from app.services.generation import answer as answer_svc
 from app.services.generation import llm as llm_svc
 
 
-@pytest.fixture()
-def client():
-    import uuid
-
-    from fastapi.testclient import TestClient
-
-    from app.main import app
-
-    with TestClient(app) as c:
-        email = f"{uuid.uuid4().hex[:12]}@test.dev"
-        token = c.post("/api/auth/register", json={"email": email, "password": "pass1234"}).json()["access_token"]
-        c.headers = {"Authorization": f"Bearer {token}"}
-        yield c
-
-
 def test_save_and_status_masked(client):
     resp = client.put("/api/settings/llm", json={"deepseek_api_key": "sk-abcdefghijklmnop1234"})
     assert resp.status_code == 200

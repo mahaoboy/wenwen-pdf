@@ -32,7 +32,7 @@ def _get_model():
         # 低内存环境（小内存主机/容器）：限制推理线程，避免解析期内存挤压
         import torch
 
-        torch.set_num_threads(2)
+        torch.set_num_threads(max(1, min(2, os.cpu_count() or 1)))
         _model_name = settings.embedding_model
     return _model
 

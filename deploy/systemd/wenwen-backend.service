@@ -10,6 +10,8 @@ WorkingDirectory=/opt/wenwen/backend
 ExecStart=/opt/wenwen/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
+Environment="TORCH_NUM_THREADS=1"
+OOMScoreAdjust=200
 # 内存与安全加固
 Environment="TOKENIZERS_PARALLELISM=false"
 NoNewPrivileges=true

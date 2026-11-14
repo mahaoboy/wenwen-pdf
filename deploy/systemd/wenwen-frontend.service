@@ -9,6 +9,7 @@ WorkingDirectory=/opt/wenwen/frontend
 ExecStart=/opt/wenwen/frontend/node_modules/.bin/next start -p 3000
 Restart=always
 RestartSec=5
+OOMScoreAdjust=200
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full

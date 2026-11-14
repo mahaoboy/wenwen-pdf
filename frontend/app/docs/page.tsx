@@ -1,0 +1,348 @@
+"use client";
+
+import {
+  DragEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, ApiError } from "@/lib/api";
+import { clearToken, getToken } from "@/lib/auth";
+import type { DocumentItem } from "@/lib/types";
+import { Brand } from "@/components/Brand";
+import { StatusBadge } from "@/components/StatusBadge";
+
+export default function DocsPage() {
+  const router = useRouter();
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const docs = await api.listDocuments();
+      setDocuments(docs);
+      setError("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "加载文档列表失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+    void load();
+  }, [router, load]);
+
+  const hasPending = documents.some(
+    (doc) => doc.status === "pending" || doc.status === "parsing",
+  );
+
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = window.setInterval(() => void load(true), 3000);
+    return () => window.clearInterval(timer);
+  }, [hasPending, load]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }
+
+  async function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || uploading) return;
+
+    setError("");
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setError("仅支持 PDF 文件");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const doc = await api.uploadDocument(file);
+      setDocuments((prev) => [doc, ...prev]);
+      void load(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "上传失败，请重试");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragging(false);
+    void handleFiles(event.dataTransfer.files);
+  }
+
+  async function handleDelete(doc: DocumentItem) {
+    const confirmed = window.confirm(
+      `确定删除「${doc.filename}」？切片、索引与对话记录将一并清除。`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(doc.id);
+    try {
+      await api.deleteDocument(doc.id);
+      setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "删除失败，请重试");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function handleLogout() {
+    clearToken();
+    router.replace("/login");
+  }
+
+  return (
+    <div className="min-h-dvh">
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <Brand />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              title="刷新状态"
+            >
+              <svg
+                className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <path d="M21 3v6h-6" />
+              </svg>
+              <span className="hidden sm:inline">刷新</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              退出登录
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+              我的文档
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {documents.length > 0
+                ? `共 ${documents.length} 份文档，点击「开始对话」向文档提问。`
+                : "上传 PDF 后即可开始提问。"}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600"
+          >
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="shrink-0 text-xs text-rose-400 hover:text-rose-600"
+            >
+              关闭
+            </button>
+          </div>
+        )}
+
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          className={`mt-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-9 text-center transition ${
+            dragging
+              ? "border-emerald-400 bg-emerald-50/70"
+              : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40"
+          } ${uploading ? "pointer-events-none opacity-70" : ""}`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(event) => void handleFiles(event.target.files)}
+          />
+          <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-500">
+            {uploading ? (
+              <span className="size-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-500" />
+            ) : (
+              <svg
+                className="size-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 16V4m0 0 4 4m-4-4L8 8" />
+                <path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
+              </svg>
+            )}
+          </span>
+          <p className="mt-3 text-sm font-medium text-slate-700">
+            {uploading ? "正在上传…" : "点击或拖拽 PDF 到这里上传"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            单个文件，上传后自动解析与切片
+          </p>
+        </div>
+
+        <section className="mt-8">
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white"
+                />
+              ))}
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center">
+              <p className="text-sm font-medium text-slate-600">
+                还没有文档
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                上传你的第一份 PDF，几秒后就能开始对话。
+              </p>
+            </div>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {documents.map((doc) => (
+                <li
+                  key={doc.id}
+                  className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-500">
+                      <svg
+                        className="size-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <path d="M14 2v6h6" />
+                      </svg>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h2
+                          className="truncate text-sm font-medium text-slate-900"
+                          title={doc.filename}
+                        >
+                          {doc.filename}
+                        </h2>
+                        <StatusBadge status={doc.status} />
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        ID {doc.id}
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        {doc.page_count} 页
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        {doc.chunk_count} 个切片
+                      </p>
+
+                      <div className="mt-4 flex items-center gap-2">
+                        <Link
+                          href={`/docs/${doc.id}`}
+                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                            doc.status === "ready"
+                              ? "bg-emerald-500 text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-600"
+                              : "border border-slate-200 text-slate-500 hover:border-emerald-200 hover:text-emerald-600"
+                          }`}
+                        >
+                          {doc.status === "ready" ? "开始对话" : "查看"}
+                          <svg
+                            className="size-3.5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M5 12h14m-6-6 6 6-6 6" />
+                          </svg>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(doc)}
+                          disabled={deletingId === doc.id}
+                          className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                        >
+                          {deletingId === doc.id ? (
+                            <span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-rose-400" />
+                          ) : (
+                            <svg
+                              className="size-3.5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                              <path d="M10 11v6M14 11v6" />
+                            </svg>
+                          )}
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}

@@ -11,9 +11,11 @@ import time
 import urllib.parse
 import urllib.request
 from email.message import EmailMessage
+from email.utils import formatdate
 from pathlib import Path
 
 from app.core.config import Settings
+from app.services.email_template import build_html, build_subject, build_text
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -102,10 +104,10 @@ def send_via_gmail(settings: Settings, to: str, code: str) -> bool:
     msg = EmailMessage()
     msg["To"] = to
     msg["From"] = sender_email(settings)
-    msg["Subject"] = f"【文问】邮箱验证码 {code}（10 分钟内有效）"
-    msg.set_content(
-        f"你的验证码：{code}\n\n10 分钟内有效。如非本人操作，请忽略本邮件。\n—— 文问 WenWen",
-    )
+    msg["Subject"] = build_subject(code)
+    msg["Date"] = formatdate(localtime=False)
+    msg.set_content(build_text(code))
+    msg.add_alternative(build_html(code), subtype="html")
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     req = urllib.request.Request(

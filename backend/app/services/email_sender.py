@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from app.core.config import get_settings
+from app.services.email_template import build_html, build_subject, build_text
 from app.services.gmail_sender import gmail_api_configured, send_via_gmail
 
 logger = logging.getLogger(__name__)
@@ -41,19 +42,11 @@ def send_verification_email(to: str, code: str) -> bool:
         return False
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"【文问】邮箱验证码 {code}（10 分钟内有效）"
+    msg["Subject"] = build_subject(code)
     msg["From"] = s.smtp_from or s.smtp_user
     msg["To"] = to
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;
-                border: 1px solid #eee; border-radius: 12px;">
-      <h2 style="color: #c2402a;">文问 WenWen · 邮箱验证</h2>
-      <p>你的验证码：</p>
-      <p style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #1c1e21;">{code}</p>
-      <p style="color: #888; font-size: 13px;">10 分钟内有效。如非本人操作，请忽略本邮件。</p>
-    </div>
-    """
-    msg.attach(MIMEText(html, "html", "utf-8"))
+    msg.attach(MIMEText(build_text(code), "plain", "utf-8"))
+    msg.attach(MIMEText(build_html(code), "html", "utf-8"))
 
     try:
         if s.smtp_ssl:

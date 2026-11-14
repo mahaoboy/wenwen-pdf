@@ -1,6 +1,8 @@
 """文档路由：上传 / 列表 / 删除 + 后台解析流水线（模块1 + 模块2）。"""
 import json
 import logging
+import os
+import re
 import shutil
 import threading
 from pathlib import Path
@@ -21,6 +23,32 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
 UPLOAD_DIR = _BACKEND_DIR / "uploads"
 ALLOWED_SUFFIX = ".pdf"
+_SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9\u4e00-\u9fa5._ -]+")
+_UPLOAD_DIR_RESOLVED = str(UPLOAD_DIR.resolve())
+
+
+def _safe_upload_name(filename: str | None) -> str:
+    """上传文件名消毒：剥离路径分量与危险字符，杜绝路径穿越写入。
+
+    历史教训：`u{id}_../../root/.ssh/authorized_keys2` 可逃逸出上传目录，
+    配合 root 运行即等于服务器任意文件写（已实测确认，高危）。
+    """
+    raw = Path(filename or "untitled.pdf").name
+    cleaned = _SAFE_NAME_RE.sub("_", raw).strip("._ ") or "untitled.pdf"
+    cleaned = cleaned[:120]
+    if not cleaned.lower().endswith(ALLOWED_SUFFIX):
+        cleaned += ALLOWED_SUFFIX
+    return cleaned
+
+
+def _is_within_uploads(path: Path) -> bool:
+    resolved = Path(os.path.normpath(str(path)))
+    try:
+        resolved.relative_to(_UPLOAD_DIR_RESOLVED)
+        return True
+    except ValueError:
+        return False
+
 
 # 解析串行队列：1 核小机器上防止多个大 PDF 并发解析挤爆内存
 _PARSE_SLOTS = threading.BoundedSemaphore(1)
@@ -60,11 +88,14 @@ def upload_document(
         )
 
     UPLOAD_DIR.mkdir(exist_ok=True)
-    dest = UPLOAD_DIR / f"u{user.id}_{file.filename}"
+    safe_name = _safe_upload_name(file.filename)
+    dest = UPLOAD_DIR / f"u{user.id}_{safe_name}"
+    if not _is_within_uploads(dest):  # 双重校验：resolve 后必须仍在上传目录内
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "文件名不合法")
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    doc = Document(user_id=user.id, filename=file.filename or "untitled.pdf", file_path=str(dest))
+    doc = Document(user_id=user.id, filename=safe_name, file_path=str(dest))
     db.add(doc)
     db.commit()
     db.refresh(doc)
@@ -144,7 +175,9 @@ def delete_document(
     if doc is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "文档不存在")
     # 隐私闸：一键删除，连带清理原文件、切片、消息、向量/BM25 索引与缓存
-    Path(doc.file_path).unlink(missing_ok=True)
+    stored = Path(doc.file_path)
+    if _is_within_uploads(stored):  # 防御旧数据中的穿越路径
+        stored.unlink(missing_ok=True)
     db.query(Chunk).filter(Chunk.document_id == doc.id).delete()
     db.query(Message).filter(Message.document_id == doc.id).delete()
     db.delete(doc)

@@ -215,3 +215,56 @@ def test_startup_recovery_marks_stuck_docs(client):
         db.commit()
     finally:
         db.close()
+
+
+def test_upload_filename_traversal_blocked(client):
+    """安全回归：路径穿越文件名必须被消毒，写入限制在上传目录内。"""
+    from pathlib import Path
+
+    from app.api.routes.documents import UPLOAD_DIR
+    from tests.helpers import auth_headers
+
+    headers = auth_headers(client)
+    evil_name = "../../../root/.ssh/authorized_keys2.pdf"
+    resp = client.post(
+        "/api/documents/upload",
+        headers=headers,
+        files={"file": (evil_name, b"%PDF-1.4 test", "application/pdf")},
+    )
+    assert resp.status_code == 201, resp.text
+    doc = resp.json()
+    # 展示名已消毒，不含路径分量
+    assert ".." not in doc["filename"] and "/" not in doc["filename"]
+    # 实际存储路径必须在上传目录内（从 DB 读，响应不暴露路径）
+    from app.db import Document as DocModel
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        row = db.get(DocModel, doc["id"])
+        stored = Path(row.file_path).resolve()
+        assert str(stored).startswith(str(UPLOAD_DIR.resolve()))
+    finally:
+        db.close()
+    # 消毒后文件名不含任何 ".." 路径分量 → 不可能逃逸出上传目录
+    assert ".." not in row.file_path
+
+    # 清理
+    client.delete(f"/api/documents/{doc['id']}", headers=headers)
+    assert not stored.exists()
+
+
+def test_upload_filename_sanitized_display(client):
+    from tests.helpers import auth_headers
+
+    headers = auth_headers(client)
+    resp = client.post(
+        "/api/documents/upload",
+        headers=headers,
+        files={"file": ("weird$name##报告?.pdf", b"%PDF-1.4 x", "application/pdf")},
+    )
+    assert resp.status_code == 201
+    doc = resp.json()
+    assert doc["filename"].endswith(".pdf")
+    assert "$" not in doc["filename"] and "#" not in doc["filename"]
+    client.delete(f"/api/documents/{doc['id']}", headers=headers)

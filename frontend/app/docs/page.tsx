@@ -11,13 +11,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { clearToken, getToken } from "@/lib/auth";
-import type { DocumentItem } from "@/lib/types";
+import type { DocumentItem, QuotaInfo } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 import { StatusBadge } from "@/components/StatusBadge";
 
 export default function DocsPage() {
   const router = useRouter();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -29,8 +30,12 @@ export default function DocsPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const docs = await api.listDocuments();
+      const [docs, quotaInfo] = await Promise.all([
+        api.listDocuments(),
+        api.getQuota().catch(() => null),
+      ]);
       setDocuments(docs);
+      if (quotaInfo) setQuota(quotaInfo);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "加载文档列表失败");
@@ -102,6 +107,7 @@ export default function DocsPage() {
     try {
       await api.deleteDocument(doc.id);
       setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
+      await load(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "删除失败，请重试");
     } finally {
@@ -162,6 +168,15 @@ export default function DocsPage() {
                 ? `共 ${documents.length} 份文档，点击「开始对话」向文档提问。`
                 : "上传 PDF 后即可开始提问。"}
             </p>
+            {quota && (
+              <p className="mt-2 text-xs text-slate-400">
+                文档 {quota.doc_used}/{quota.doc_limit}
+                <span className="mx-1.5 text-slate-300">·</span>
+                提问 {quota.question_used}/{quota.question_limit}
+                <span className="mx-1.5 text-slate-300">·</span>
+                {quota.plan === "free" ? "免费版" : quota.plan}
+              </p>
+            )}
           </div>
         </div>
 

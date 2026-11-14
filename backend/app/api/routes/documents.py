@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
-from app.db import Chunk, Document, User
+from app.db import Chunk, Document, Message, User
 from app.db.session import SessionLocal, get_db
 from app.schemas import DocumentOut
 
@@ -122,9 +122,10 @@ def delete_document(
     doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
     if doc is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "文档不存在")
-    # 隐私闸：一键删除，连带清理原文件、切片、向量/BM25 索引与缓存
+    # 隐私闸：一键删除，连带清理原文件、切片、消息、向量/BM25 索引与缓存
     Path(doc.file_path).unlink(missing_ok=True)
     db.query(Chunk).filter(Chunk.document_id == doc.id).delete()
+    db.query(Message).filter(Message.document_id == doc.id).delete()
     db.delete(doc)
     db.commit()  # 先提交释放 SQLite 写锁，再做检索层清理（二次会话 DELETE 避免撞锁）
     from app.services.retrieval.hybrid import delete_doc as delete_retrieval

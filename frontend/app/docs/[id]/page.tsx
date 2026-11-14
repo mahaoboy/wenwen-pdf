@@ -22,17 +22,17 @@ const SUGGESTIONS = [
   "用三点总结这份文档。",
 ];
 
-function toHistory(messages: ChatMessage[]): [string, string][] {
-  const history: [string, string][] = [];
-  for (let i = 0; i < messages.length; i += 1) {
-    const current = messages[i];
-    const next = messages[i + 1];
-    if (current.role === "user" && next?.role === "assistant") {
-      history.push([current.content, next.content]);
-      i += 1;
-    }
-  }
-  return history;
+function sessionKey(docId: number) {
+  return `wenwen_session_${docId}`;
+}
+
+function getSessionId(docId: number): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(sessionKey(docId));
+}
+
+function saveSessionId(docId: number, sessionId: string) {
+  window.localStorage.setItem(sessionKey(docId), sessionId);
 }
 
 function AssistantAvatar() {
@@ -93,6 +93,7 @@ export default function ChatPage() {
 
   const [doc, setDoc] = useState<DocumentItem | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [chatError, setChatError] = useState("");
@@ -113,15 +114,27 @@ export default function ChatPage() {
     }
 
     try {
-      const [docs, history] = await Promise.all([
+      const [docs, initialHistory] = await Promise.all([
         api.listDocuments(),
-        api.listMessages(docId),
+        api.listMessages(docId, getSessionId(docId)),
       ]);
       const found = docs.find((item) => item.id === docId) ?? null;
       if (!found) {
         setError("文档不存在或已被删除");
       }
       setDoc(found);
+
+      let sid = getSessionId(docId);
+      let history = initialHistory;
+      if (!sid && history.length > 0) {
+        // 没有本地会话记录时，接管该文档最近一次会话，保证多轮上下文连续
+        sid = history[history.length - 1].session_id || null;
+        if (sid) {
+          history = history.filter((item) => item.session_id === sid);
+          saveSessionId(docId, sid);
+        }
+      }
+      setSessionId(sid);
       setMessages(history);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "加载对话失败");
@@ -164,7 +177,6 @@ export default function ChatPage() {
       return;
     }
 
-    const history = toHistory(messages);
     const optimistic: ChatMessage = {
       role: "user",
       content: question,
@@ -178,7 +190,11 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimistic]);
 
     try {
-      const response = await api.chat(docId, question, history);
+      const response = await api.chat(docId, question, sessionId);
+      if (response.session_id) {
+        setSessionId(response.session_id);
+        saveSessionId(docId, response.session_id);
+      }
       setMessages((prev) => [
         ...prev,
         {

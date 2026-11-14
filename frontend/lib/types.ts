@@ -22,10 +22,21 @@ export interface Citation {
 export interface ChatResponse {
   answer: string;
   citations: Citation[];
+  session_id: string;
+  mode: "llm" | "extractive" | string;
 }
 
 export interface ChatMessage {
+  session_id?: string;
   role: "user" | "assistant";
   content: string;
   citations: Citation[];
+}
+
+export interface QuotaInfo {
+  plan: string;
+  doc_used: number;
+  doc_limit: number;
+  question_used: number;
+  question_limit: number;
 }

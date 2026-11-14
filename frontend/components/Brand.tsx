@@ -1,8 +1,14 @@
 import Link from "next/link";
 
-export function Brand({ className = "" }: { className?: string }) {
+export function Brand({
+  className = "",
+  href = "/docs",
+}: {
+  className?: string;
+  href?: string;
+}) {
   return (
-    <Link href="/docs" className={`inline-flex items-center gap-2.5 ${className}`}>
+    <Link href={href} className={`inline-flex items-center gap-2.5 ${className}`}>
       <span className="grid size-9 place-items-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-base font-bold text-white shadow-sm shadow-emerald-500/30">
         文
       </span>

@@ -151,6 +151,14 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-xs text-slate-400">
           免费版可上传 3 份文档，累计提问 20 次
         </p>
+        <p className="mt-3 text-center text-xs">
+          <a
+            href="/"
+            className="text-slate-400 transition hover:text-emerald-600"
+          >
+            ← 返回文问首页
+          </a>
+        </p>
       </div>
     </div>
   );

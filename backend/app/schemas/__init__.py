@@ -34,14 +34,18 @@ class Citation(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    document_id: int
     question: str
-    # 多轮对话：携带历史，后端截断窗口
-    history: list[tuple[str, str]] = []
+    # 多轮会话 ID：不传则新建并返回；传同一 ID 即延续上下文
+    session_id: str | None = None
 
 
 class ChatResponse(BaseModel):
     answer: str
     citations: list[Citation]
+    session_id: str
+    # "llm" = DeepSeek 生成；"extractive" = 未配置 Key 的原文摘录降级
+    mode: str = "llm"
 
 
 class QuotaOut(BaseModel):

@@ -39,7 +39,27 @@ def _auth(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_upload_list_delete_roundtrip(client):
+def test_upload_list_delete_roundtrip(client, monkeypatch):
+    """上传→提问→删除全链路：覆盖「删除带对话消息的文档」级联清理回归。"""
+    # stub 嵌入器：让本用例不依赖真实模型，聚焦接口与级联行为
+    import hashlib
+
+    import numpy as np
+
+    from app.services.retrieval import embeddings as emb_mod
+
+    def fake_embed(texts):
+        out = []
+        for t in texts:
+            v = np.zeros(64, dtype=np.float32)
+            for ch in t:
+                v[int(hashlib.md5(ch.encode()).hexdigest(), 16) % 64] += 1.0
+            n = float(np.linalg.norm(v)) or 1.0
+            out.append((v / n).tolist())
+        return out
+
+    monkeypatch.setattr(emb_mod, "embed", fake_embed)
+
     token = _register(client)
     headers = _auth(token)
 
@@ -86,15 +106,26 @@ def test_upload_list_delete_roundtrip(client):
     finally:
         db.close()
 
-    # 删除 → 文件/切片/文档一并清理
+    # 提问一次（产生对话消息），再删除——回归：Message 级联清理
+    resp = client.post(
+        "/api/chat/ask",
+        headers=headers,
+        json={"document_id": doc["id"], "question": "付款期限"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    # 删除 → 文件/切片/消息/文档一并清理
     resp = client.delete(f"/api/documents/{doc['id']}", headers=headers)
-    assert resp.status_code == 204
+    assert resp.status_code == 204, resp.text
     resp = client.get("/api/documents", headers=headers)
     assert resp.json() == []
 
     db = SessionLocal()
     try:
         assert db.query(Chunk).filter(Chunk.document_id == doc["id"]).count() == 0
+        from app.db import Message
+
+        assert db.query(Message).filter(Message.document_id == doc["id"]).count() == 0
     finally:
         db.close()
 

@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   ChatResponse,
   DocumentItem,
+  QuotaInfo,
 } from "./types";
 
 export const API_BASE = (
@@ -133,15 +134,25 @@ export const api = {
   chat(
     docId: number,
     question: string,
-    history: [string, string][],
+    sessionId?: string | null,
   ): Promise<ChatResponse> {
-    return request<ChatResponse>(`/api/documents/${docId}/chat`, {
+    return request<ChatResponse>("/api/chat/ask", {
       method: "POST",
-      body: JSON.stringify({ question, history }),
+      body: JSON.stringify({
+        document_id: docId,
+        question,
+        session_id: sessionId || null,
+      }),
     });
   },
 
-  listMessages(docId: number): Promise<ChatMessage[]> {
-    return request<ChatMessage[]>(`/api/documents/${docId}/messages`);
+  listMessages(docId: number, sessionId?: string | null): Promise<ChatMessage[]> {
+    const params = new URLSearchParams({ document_id: String(docId) });
+    if (sessionId) params.set("session_id", sessionId);
+    return request<ChatMessage[]>(`/api/chat/history?${params.toString()}`);
+  },
+
+  getQuota(): Promise<QuotaInfo> {
+    return request<QuotaInfo>("/api/billing/quota");
   },
 };

@@ -38,7 +38,9 @@ class Document(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User"] = relationship(back_populates="docs")
-    messages: Mapped[list["Message"]] = relationship(back_populates="document")
+    messages: Mapped[list["Message"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class Message(Base):
@@ -46,6 +48,7 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
+    session_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     role: Mapped[str] = mapped_column(String(16))  # user / assistant
     content: Mapped[str] = mapped_column(Text)
     # 引用映射：JSON 字符串，[{"chunk_id":..., "page":..., "snippet":...}]

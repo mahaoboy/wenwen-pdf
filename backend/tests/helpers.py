@@ -63,3 +63,15 @@ def auth_headers(client: TestClient, email: str | None = None, password: str = "
 
 def new_email() -> str:
     return f"{uuid.uuid4().hex[:12]}@test.dev"
+
+
+def current_user_id() -> int:
+    """当前测试客户端注册的用户（users 表最新一条）。"""
+    from app.db import User
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        return db.query(User).order_by(User.id.desc()).first().id
+    finally:
+        db.close()

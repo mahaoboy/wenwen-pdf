@@ -166,3 +166,52 @@ def test_doc_quota_gate(client):
         assert resp.status_code == 402  # 免费版 1 篇上限（测试内临时改小）
     finally:
         settings.free_doc_limit = old_limit
+
+def test_upload_size_limit_413(client):
+    """应用层大小限制：超限返回 413（与 nginx 20MB 双重防御）。"""
+    from app.core.config import get_settings
+    from tests.helpers import auth_headers
+
+    headers = auth_headers(client)
+    settings = get_settings()
+    old = settings.max_upload_mb
+    settings.max_upload_mb = 1
+    try:
+        big = b"%PDF-1.4 " + b"0" * (2 * 1024 * 1024)  # 2MB 假 PDF
+        resp = client.post(
+            "/api/documents/upload",
+            headers=headers,
+            files={"file": ("big.pdf", big, "application/pdf")},
+        )
+        assert resp.status_code == 413, resp.text
+        assert "文件过大" in resp.json()["detail"]
+    finally:
+        settings.max_upload_mb = old
+
+
+def test_startup_recovery_marks_stuck_docs(client):
+    """启动自愈：重启后卡在 pending/parsing 的文档标记为 error。"""
+    from app.api.routes.documents import recover_stuck_documents
+    from app.db import Document
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        from tests.helpers import current_user_id
+
+        db.add(Document(id=876601, user_id=current_user_id(), filename="stuck.pdf",
+                        file_path="stuck.pdf", status="parsing"))
+        db.commit()
+    finally:
+        db.close()
+
+    n = recover_stuck_documents()
+    db = SessionLocal()
+    try:
+        status = db.get(Document, 876601).status
+        assert status == "error"
+        assert n >= 1
+        db.delete(db.get(Document, 876601))
+        db.commit()
+    finally:
+        db.close()

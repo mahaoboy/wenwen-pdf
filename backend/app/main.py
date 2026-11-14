@@ -1,4 +1,5 @@
 """FastAPI 入口：挂载路由、建表、健康检查。"""
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,6 +15,12 @@ from app.db.session import engine, ensure_schema
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_schema()
+    # 启动自愈：进程重启丢失的后台解析任务 → 标记失败（用户重新上传即可）
+    from app.api.routes.documents import recover_stuck_documents
+
+    stuck = recover_stuck_documents()
+    if stuck:
+        logging.getLogger(__name__).warning("启动自愈：%d 个中断解析的文档标记为失败", stuck)
     yield
 
 

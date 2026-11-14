@@ -7,6 +7,7 @@ import pytest
 from app.services.generation import answer as answer_svc
 from app.services.generation import llm as llm_svc
 from app.services.retrieval import embeddings
+from tests.helpers import current_user_id, register_verified
 
 DIM = 64
 
@@ -44,18 +45,6 @@ def _stub_llm_cite_first_chunk(monkeypatch):
     monkeypatch.setattr(answer_svc.llm, "chat_completion", fake_completion)
 
 
-def _current_user_id() -> int:
-    """client fixture 每个用例新注册的用户（最新一条）。"""
-    from app.db import User
-    from app.db.session import SessionLocal
-
-    db = SessionLocal()
-    try:
-        return db.query(User).order_by(User.id.desc()).first().id
-    finally:
-        db.close()
-
-
 @pytest.fixture
 def seeded_doc(client):
     """向 DB 灌一个归属于当前测试用户的已就绪文档（三条切片）。"""
@@ -63,7 +52,7 @@ def seeded_doc(client):
     from app.db.session import SessionLocal
 
     doc_id = 876543
-    user_id = _current_user_id()
+    user_id = current_user_id()
     db = SessionLocal()
     try:
         db.add(Document(id=doc_id, user_id=user_id, filename="t.pdf", file_path="t.pdf", status="ready"))
@@ -185,7 +174,7 @@ def test_ask_doc_not_found_and_not_ready(client, stub_embed):
 
     db = SessionLocal()
     try:
-        db.add(Document(id=876500, user_id=_current_user_id(), filename="p.pdf", file_path="p.pdf", status="pending"))
+        db.add(Document(id=876500, user_id=current_user_id(), filename="p.pdf", file_path="p.pdf", status="pending"))
         db.commit()
     finally:
         db.close()

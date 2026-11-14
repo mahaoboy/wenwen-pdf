@@ -48,6 +48,9 @@ class Settings(BaseSettings):
 
     free_doc_limit: int = 3
     free_question_limit: int = 20
+
+    # 单文件上传上限（MB）。nginx 层同步限制（client_max_body_size），双层防御
+    max_upload_mb: int = 20
     buyout_doc_limit: int = 100
     buyout_question_limit: int = 200
     sub_monthly_doc_limit: int = 300

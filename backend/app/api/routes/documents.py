@@ -2,6 +2,7 @@
 import json
 import logging
 import shutil
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
@@ -20,6 +21,9 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
 UPLOAD_DIR = _BACKEND_DIR / "uploads"
 ALLOWED_SUFFIX = ".pdf"
+
+# 解析串行队列：1 核小机器上防止多个大 PDF 并发解析挤爆内存
+_PARSE_SLOTS = threading.BoundedSemaphore(1)
 
 
 @router.get("", response_model=list[DocumentOut])
@@ -47,6 +51,14 @@ def upload_document(
     if not (file.filename or "").lower().endswith(ALLOWED_SUFFIX):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "仅支持 PDF 文件")
 
+    # 大小限制（应用层；nginx 层另有 client_max_body_size 双重防御）
+    max_mb = settings.max_upload_mb
+    if file.size and file.size > max_mb * 1024 * 1024:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"文件过大（{file.size / 1024 / 1024:.1f}MB），单个 PDF 不超过 {max_mb}MB",
+        )
+
     UPLOAD_DIR.mkdir(exist_ok=True)
     dest = UPLOAD_DIR / f"u{user.id}_{file.filename}"
     with dest.open("wb") as f:
@@ -63,7 +75,16 @@ def upload_document(
 
 
 def _parse_document(doc_id: int) -> None:
-    """后台流水线：提取（PyMuPDF/PDFPlumber/OCR）→ 条款切片 → Chunk 入库。"""
+    """后台流水线：提取（PyMuPDF/PDFPlumber/OCR）→ 条款切片 → 向量索引 → Chunk 入库。
+
+    串行队列：多个上传同时解析时排队执行，保护小内存机器。
+    进程重启会丢失队列中的任务——启动时 recover_stuck_documents 自愈。
+    """
+    with _PARSE_SLOTS:
+        _run_parse(doc_id)
+
+
+def _run_parse(doc_id: int) -> None:
     db = SessionLocal()
     try:
         doc = db.get(Document, doc_id)
@@ -134,3 +155,24 @@ def delete_document(
     from app.services.cache import invalidate_doc
 
     invalidate_doc(doc.id)
+
+
+def recover_stuck_documents() -> int:
+    """启动自愈：进程重启会丢失内存中的解析任务，卡在 pending/parsing 的文档标记为失败。
+
+    返回受影响文档数。用户重新上传即可（原文件可能仍在上传目录，但不自动重试——
+    避免重启风暴时反复解析大文件）。
+    """
+    db = SessionLocal()
+    try:
+        n = (
+            db.query(Document)
+            .filter(Document.status.in_(["pending", "parsing"]))
+            .update({Document.status: "error"}, synchronize_session=False)
+        )
+        db.commit()
+        if n:
+            logger.warning("启动自愈：%d 个文档因进程重启中断解析，已标记为失败，请重新上传", n)
+        return n
+    finally:
+        db.close()

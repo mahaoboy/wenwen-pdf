@@ -77,6 +77,10 @@ export default function DocsPage() {
       setError("仅支持 PDF 文件");
       return;
     }
+    if (file.size > 20 * 1024 * 1024) {
+      setError(`文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），单个 PDF 不超过 20MB`);
+      return;
+    }
 
     setUploading(true);
     try {
@@ -248,7 +252,7 @@ export default function DocsPage() {
               <>
                 拖入 PDF，或
                 <span className="font-medium text-accent">点击选择文件</span>
-                ，自动解析与切片
+                （≤20MB），自动解析与切片
               </>
             )}
           </p>

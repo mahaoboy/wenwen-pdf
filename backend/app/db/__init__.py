@@ -20,6 +20,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     plan: Mapped[str] = mapped_column(String(32), default="free")  # free / buyout / monthly / yearly
+    # BYOK：用户自备 DeepSeek API Key（优先于全局配置；MVP 本地部署明文存储，生产需加密）
+    deepseek_api_key: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     docs: Mapped[list["Document"]] = relationship(back_populates="user")

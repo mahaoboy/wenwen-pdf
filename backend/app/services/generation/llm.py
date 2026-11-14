@@ -1,4 +1,4 @@
-"""DeepSeek LLM 客户端（OpenAI 兼容协议），Qwen 为备选。"""
+"""DeepSeek LLM 客户端（OpenAI 兼容协议），Qwen 为备选。支持用户自备 Key（BYOK）。"""
 from __future__ import annotations
 
 from openai import OpenAI
@@ -6,9 +6,11 @@ from openai import OpenAI
 from app.core.config import get_settings
 
 
-def chat_completion(messages: list[dict], temperature: float = 0.1) -> str:
+def chat_completion(messages: list[dict], api_key: str | None = None, temperature: float = 0.1) -> str:
+    """api_key 传入用户自备 Key（BYOK）时优先使用；否则回落全局配置。"""
     settings = get_settings()
-    client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+    key = api_key or settings.deepseek_api_key
+    client = OpenAI(api_key=key, base_url=settings.deepseek_base_url)
     resp = client.chat.completions.create(
         model=settings.deepseek_model,
         messages=messages,

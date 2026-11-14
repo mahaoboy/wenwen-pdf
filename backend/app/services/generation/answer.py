@@ -14,15 +14,22 @@ from app.services.generation import llm, prompts
 logger = logging.getLogger(__name__)
 
 
-def generate_answer(question: str, retrieved: list[dict], history: list[tuple[str, str]]) -> dict:
+def generate_answer(
+    question: str,
+    retrieved: list[dict],
+    history: list[tuple[str, str]],
+    user_api_key: str = "",
+) -> dict:
     """返回 {"answer": 回答文本, "mode": "llm" | "extractive"}。
 
+    Key 优先级：用户自备（BYOK）→ 全局配置 → 抽取式降级。
     answer 中的引用统一用 [来源:{chunk_id}] 标注，由 citations.py 校验映射。
     """
     settings = get_settings()
-    if settings.deepseek_api_key:
+    key = (user_api_key or "").strip() or settings.deepseek_api_key
+    if key:
         messages = prompts.build_messages(question, retrieved, history)
-        text = llm.chat_completion(messages)
+        text = llm.chat_completion(messages, api_key=key)
         return {"answer": text, "mode": "llm"}
     return {"answer": _extractive(question, retrieved), "mode": "extractive"}
 

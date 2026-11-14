@@ -94,9 +94,9 @@ def ask(
     if q_used >= q_limit:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, f"提问次数已达上限（{q_limit}），请升级套餐")
 
-    # 混合检索 → 生成 → 引用校验（幻觉闸：引用必须来自真实检索结果）
+    # 混合检索 → 生成（用户自备 Key 优先）→ 引用校验（幻觉闸：引用必须来自真实检索结果）
     retrieved = hybrid.retrieve(doc.id, req.question)
-    generated = generate_answer(req.question, retrieved, history)
+    generated = generate_answer(req.question, retrieved, history, user_api_key=user.deepseek_api_key)
     citations = extract_citations(generated["answer"], retrieved)
 
     db.add(Message(document_id=doc.id, session_id=session_id, role="user", content=req.question))

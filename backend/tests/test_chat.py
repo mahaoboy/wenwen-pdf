@@ -32,7 +32,7 @@ def stub_embed(monkeypatch):
 def _stub_llm_cite_first_chunk(monkeypatch):
     """假 LLM：从拼好的 prompt 里取第一个检索片段 chunk_id 并引用它（模拟真实引用行为）。"""
 
-    def fake_completion(messages: list[dict]) -> str:
+    def fake_completion(messages: list[dict], api_key: str | None = None, temperature: float = 0.1) -> str:
         cid = None
         for m in messages:
             if m["role"] == "user" and "【检索片段】" in m["content"]:
@@ -146,7 +146,7 @@ def test_ask_llm_mode_citation_validation(client, stub_embed, seeded_doc, monkey
 
         # 编造引用：LLM 引用不存在的 chunk → 应被过滤为空
         monkeypatch.setattr(
-            answer_svc.llm, "chat_completion", lambda msgs: "胡说 [来源:fake-c999]"
+            answer_svc.llm, "chat_completion", lambda msgs, api_key=None, temperature=0.1: "胡说 [来源:fake-c999]"
         )
         resp2 = client.post("/api/chat/ask", json={"document_id": seeded_doc, "question": "付款义务", "session_id": data["session_id"]})
         assert resp2.json()["citations"] == []

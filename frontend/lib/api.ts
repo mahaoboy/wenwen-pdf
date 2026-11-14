@@ -4,7 +4,9 @@ import type {
   ChatMessage,
   ChatResponse,
   DocumentItem,
+  LlmStatus,
   QuotaInfo,
+  VerifyResult,
 } from "./types";
 
 export const API_BASE = (
@@ -154,5 +156,23 @@ export const api = {
 
   getQuota(): Promise<QuotaInfo> {
     return request<QuotaInfo>("/api/billing/quota");
+  },
+
+  getLlmStatus(): Promise<LlmStatus> {
+    return request<LlmStatus>("/api/settings/llm");
+  },
+
+  saveLlmKey(key: string): Promise<LlmStatus> {
+    return request<LlmStatus>("/api/settings/llm", {
+      method: "PUT",
+      body: JSON.stringify({ deepseek_api_key: key }),
+    });
+  },
+
+  verifyLlmKey(key: string): Promise<VerifyResult> {
+    return request<VerifyResult>("/api/settings/llm/verify", {
+      method: "POST",
+      body: JSON.stringify({ deepseek_api_key: key }),
+    });
   },
 };

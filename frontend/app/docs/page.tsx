@@ -146,6 +146,12 @@ export default function DocsPage() {
               </svg>
               <span className="hidden sm:inline">刷新</span>
             </button>
+            <Link
+              href="/settings"
+              className="rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              AI 设置
+            </Link>
             <button
               type="button"
               onClick={handleLogout}

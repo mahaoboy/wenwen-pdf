@@ -40,3 +40,14 @@ export interface QuotaInfo {
   question_used: number;
   question_limit: number;
 }
+
+export interface LlmStatus {
+  configured: boolean;
+  masked: string | null;
+  mode: "user" | "global" | "extractive" | string;
+}
+
+export interface VerifyResult {
+  ok: boolean;
+  message: string;
+}

@@ -99,6 +99,7 @@ export default function ChatPage() {
   const [chatError, setChatError] = useState("");
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
+  const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -146,6 +147,14 @@ export default function ChatPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    // BYOK 提示：未配置 AI Key 时，页脚提示用户可到设置页开启生成模式
+    api
+      .getLlmStatus()
+      .then((s) => setLlmConfigured(s.configured))
+      .catch(() => setLlmConfigured(null));
+  }, []);
 
   useEffect(() => {
     if (!doc || (doc.status !== "pending" && doc.status !== "parsing")) return;
@@ -475,7 +484,17 @@ export default function ChatPage() {
           </form>
 
           <p className="mt-1.5 text-center text-[11px] text-slate-400">
-            Enter 发送 · Shift + Enter 换行 · AI 回答仅供参考，请核对引用原文
+            {llmConfigured === false ? (
+              <>
+                当前为原文摘录模式 ·{" "}
+                <Link href="/settings" className="text-emerald-600 hover:underline">
+                  配置 DeepSeek Key
+                </Link>{" "}
+                开启 AI 生成 · 引用核对不受影响
+              </>
+            ) : (
+              <>Enter 发送 · Shift + Enter 换行 · AI 回答仅供参考，请核对引用原文</>
+            )}
           </p>
         </div>
       </footer>

@@ -118,13 +118,13 @@ export default function LandingPage() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Brand href="/" />
           <nav className="hidden items-center gap-7 text-sm text-slate-600 md:flex">
-            <a href="#features" className="transition hover:text-emerald-600">
+            <a href="#features" className="transition hover:text-accent">
               功能特性
             </a>
-            <a href="#stack" className="transition hover:text-emerald-600">
+            <a href="#stack" className="transition hover:text-accent">
               技术架构
             </a>
-            <a href="#quickstart" className="transition hover:text-emerald-600">
+            <a href="#quickstart" className="transition hover:text-accent">
               快速开始
             </a>
           </nav>
@@ -140,7 +140,7 @@ export default function LandingPage() {
             </a>
             <Link
               href="/login"
-              className="rounded-xl bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/25 transition hover:bg-emerald-600"
+              className="rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-accent/25 transition hover:bg-accent-deep"
             >
               打开应用
             </Link>
@@ -150,16 +150,16 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -top-40 left-1/2 size-[40rem] -translate-x-1/2 rounded-full bg-emerald-100/60 blur-3xl" />
+        <div className="pointer-events-none absolute -top-40 left-1/2 size-[40rem] -translate-x-1/2 rounded-full bg-accent-wash/60 blur-3xl" />
         <div className="pointer-events-none absolute -right-40 top-40 size-96 rounded-full bg-teal-100/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-medium text-emerald-700">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent-wash px-3.5 py-1.5 text-xs font-medium text-accent-deep">
+            <span className="size-1.5 rounded-full bg-accent" />
             开源 · MIT License · 本地优先
           </span>
           <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl">
             中国版{" "}
-            <span className="bg-linear-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-accent to-accent-deep bg-clip-text text-transparent">
               PDF.ai
             </span>
           </h1>
@@ -179,7 +179,7 @@ export default function LandingPage() {
             </a>
             <a
               href="#quickstart"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-accent/40 hover:bg-accent-wash hover:text-accent-deep sm:w-auto"
             >
               快速开始
               <svg
@@ -224,7 +224,7 @@ export default function LandingPage() {
       <section id="features" className="scroll-mt-24 border-t border-slate-100 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-emerald-600">功能特性</p>
+            <p className="text-sm font-semibold text-accent">功能特性</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               为中文文档问答而生的每一层设计
             </h2>
@@ -237,9 +237,9 @@ export default function LandingPage() {
             {FEATURES.map((feature) => (
               <article
                 key={feature.title}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5"
+                className="group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5"
               >
-                <span className="inline-grid size-11 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-500 group-hover:text-white">
+                <span className="inline-grid size-11 place-items-center rounded-xl bg-accent-wash text-accent transition group-hover:bg-accent group-hover:text-white">
                   <Icon>{feature.icon}</Icon>
                 </span>
                 <h3 className="mt-4 text-base font-semibold text-slate-900">
@@ -261,7 +261,7 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-emerald-600">技术架构</p>
+            <p className="text-sm font-semibold text-accent">技术架构</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               全栈开源，零外部服务依赖
             </h2>
@@ -318,7 +318,7 @@ export default function LandingPage() {
       <section id="quickstart" className="scroll-mt-24 border-t border-slate-100 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-emerald-600">快速开始</p>
+            <p className="text-sm font-semibold text-accent">快速开始</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               两条命令，本地跑起来
             </h2>
@@ -347,28 +347,28 @@ export default function LandingPage() {
                   <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
                     <span className="size-2 rounded-full bg-rose-400/80" />
                     <span className="size-2 rounded-full bg-amber-400/80" />
-                    <span className="size-2 rounded-full bg-emerald-400/80" />
+                    <span className="size-2 rounded-full bg-accent/80" />
                   </span>
                 </div>
-                <pre className="overflow-x-auto px-4 py-4 text-[13px] leading-relaxed text-emerald-200/90">
+                <pre className="overflow-x-auto px-4 py-4 text-[13px] leading-relaxed text-accent-wash/90">
                   <code>{block.cmd}</code>
                 </pre>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-5 sm:flex-row">
+          <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-accent/40 bg-accent-wash px-6 py-5 sm:flex-row">
             <div>
-              <p className="text-sm font-semibold text-emerald-900">
+              <p className="text-sm font-semibold text-accent-deep">
                 已经跑起来了？
               </p>
-              <p className="mt-0.5 text-sm text-emerald-700/80">
+              <p className="mt-0.5 text-sm text-accent-deep/80">
                 注册账号，上传第一份 PDF，开始向文档提问。
               </p>
             </div>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent-deep px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-deep"
             >
               打开文问
               <svg
@@ -402,14 +402,14 @@ export default function LandingPage() {
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-slate-600 transition hover:text-emerald-600"
+                className="inline-flex items-center gap-2 text-slate-600 transition hover:text-accent"
               >
                 <GithubMark />
                 mahaoboy/wenwen-pdf
               </a>
               <Link
                 href="/login"
-                className="text-slate-600 transition hover:text-emerald-600"
+                className="text-slate-600 transition hover:text-accent"
               >
                 登录
               </Link>
@@ -423,7 +423,7 @@ export default function LandingPage() {
                 href="https://github.com/mahaoboy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-slate-500 transition hover:text-emerald-600"
+                className="font-medium text-slate-500 transition hover:text-accent"
               >
                 mahaoboy
               </a>{" "}

@@ -210,10 +210,10 @@ export default function DocsPage() {
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => !uploading && fileInputRef.current?.click()}
-          className={`mt-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-9 text-center transition ${
+          className={`mt-5 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 py-3 transition ${
             dragging
-              ? "border-emerald-400 bg-emerald-50/70"
-              : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40"
+              ? "border-accent bg-accent-wash"
+              : "border-slate-300 bg-white hover:border-accent hover:bg-accent-wash/60"
           } ${uploading ? "pointer-events-none opacity-70" : ""}`}
         >
           <input
@@ -223,12 +223,12 @@ export default function DocsPage() {
             className="hidden"
             onChange={(event) => void handleFiles(event.target.files)}
           />
-          <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-500">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-wash text-accent">
             {uploading ? (
-              <span className="size-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-500" />
+              <span className="size-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
             ) : (
               <svg
-                className="size-6"
+                className="size-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -241,44 +241,90 @@ export default function DocsPage() {
               </svg>
             )}
           </span>
-          <p className="mt-3 text-sm font-medium text-slate-700">
-            {uploading ? "正在上传…" : "点击或拖拽 PDF 到这里上传"}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            单个文件，上传后自动解析与切片
+          <p className="flex-1 truncate text-sm text-slate-600">
+            {uploading ? (
+              "正在上传…"
+            ) : (
+              <>
+                拖入 PDF，或
+                <span className="font-medium text-accent">点击选择文件</span>
+                ，自动解析与切片
+              </>
+            )}
           </p>
         </div>
 
-        <section className="mt-8">
+        <section className="mt-6">
           {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
               {[0, 1, 2].map((index) => (
-                <div
-                  key={index}
-                  className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white"
-                />
+                <div key={index} className="flex items-center gap-3 px-4 py-4">
+                  <div className="size-9 animate-pulse rounded-lg bg-slate-100" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 w-2/5 animate-pulse rounded bg-slate-100" />
+                    <div className="h-3 w-1/4 animate-pulse rounded bg-slate-50" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : documents.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center">
-              <p className="text-sm font-medium text-slate-600">
-                还没有文档
-              </p>
+            <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center">
+              <p className="text-sm font-medium text-slate-600">还没有文档</p>
               <p className="mt-1 text-sm text-slate-400">
-                上传你的第一份 PDF，几秒后就能开始对话。
+                在上方拖入第一份 PDF，几秒后就能开始对话。
               </p>
             </div>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
               {documents.map((doc) => (
                 <li
                   key={doc.id}
-                  className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+                  className="animate-fade-up flex items-center gap-3 px-4 py-3.5 transition hover:bg-accent-wash/40"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-500">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-wash text-accent">
+                    <svg
+                      className="size-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                    </svg>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2
+                        className="truncate text-sm font-medium text-slate-900"
+                        title={doc.filename}
+                      >
+                        {doc.filename}
+                      </h2>
+                      <StatusBadge status={doc.status} />
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {doc.page_count} 页
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      {doc.chunk_count} 个切片
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Link
+                      href={`/docs/${doc.id}`}
+                      className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        doc.status === "ready"
+                          ? "bg-accent text-white hover:bg-accent-deep"
+                          : "border border-slate-200 text-slate-500 hover:border-accent hover:text-accent"
+                      }`}
+                    >
+                      {doc.status === "ready" ? "开始对话" : "查看"}
                       <svg
-                        className="size-5"
+                        className="size-3.5"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -286,77 +332,33 @@ export default function DocsPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <path d="M14 2v6h6" />
+                        <path d="M5 12h14m-6-6 6 6-6 6" />
                       </svg>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h2
-                          className="truncate text-sm font-medium text-slate-900"
-                          title={doc.filename}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(doc)}
+                      disabled={deletingId === doc.id}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                    >
+                      {deletingId === doc.id ? (
+                        <span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-rose-400" />
+                      ) : (
+                        <svg
+                          className="size-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
-                          {doc.filename}
-                        </h2>
-                        <StatusBadge status={doc.status} />
-                      </div>
-                      <p className="mt-1.5 text-xs text-slate-400">
-                        ID {doc.id}
-                        <span className="mx-1.5 text-slate-300">·</span>
-                        {doc.page_count} 页
-                        <span className="mx-1.5 text-slate-300">·</span>
-                        {doc.chunk_count} 个切片
-                      </p>
-
-                      <div className="mt-4 flex items-center gap-2">
-                        <Link
-                          href={`/docs/${doc.id}`}
-                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                            doc.status === "ready"
-                              ? "bg-emerald-500 text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-600"
-                              : "border border-slate-200 text-slate-500 hover:border-emerald-200 hover:text-emerald-600"
-                          }`}
-                        >
-                          {doc.status === "ready" ? "开始对话" : "查看"}
-                          <svg
-                            className="size-3.5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M5 12h14m-6-6 6 6-6 6" />
-                          </svg>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(doc)}
-                          disabled={deletingId === doc.id}
-                          className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                        >
-                          {deletingId === doc.id ? (
-                            <span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-rose-400" />
-                          ) : (
-                            <svg
-                              className="size-3.5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                              <path d="M10 11v6M14 11v6" />
-                            </svg>
-                          )}
-                          删除
-                        </button>
-                      </div>
-                    </div>
+                          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                          <path d="M10 11v6M14 11v6" />
+                        </svg>
+                      )}
+                      删除
+                    </button>
                   </div>
                 </li>
               ))}

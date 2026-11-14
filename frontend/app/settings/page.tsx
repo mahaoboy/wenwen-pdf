@@ -93,7 +93,7 @@ export default function SettingsPage() {
             <span
               className={`rounded-full px-2.5 py-1 text-xs ${
                 status?.configured
-                  ? "bg-emerald-50 text-emerald-600"
+                  ? "bg-accent-wash text-accent"
                   : "bg-slate-100 text-slate-500"
               }`}
             >
@@ -108,7 +108,7 @@ export default function SettingsPage() {
             value={keyInput}
             onChange={(e) => setKeyInput(e.target.value)}
             placeholder="sk-…（粘贴你的 DeepSeek API Key）"
-            className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10"
           />
           <p className="mt-2 text-xs text-slate-400">
             没有 Key？到{" "}
@@ -116,7 +116,7 @@ export default function SettingsPage() {
               href="https://platform.deepseek.com"
               target="_blank"
               rel="noreferrer"
-              className="text-indigo-500 hover:underline"
+              className="text-accent hover:underline"
             >
               platform.deepseek.com
             </a>{" "}
@@ -127,7 +127,7 @@ export default function SettingsPage() {
             <button
               onClick={() => void handleSave()}
               disabled={saving}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-50"
             >
               {saving ? "保存中…" : "保存 Key"}
             </button>
@@ -141,7 +141,7 @@ export default function SettingsPage() {
           </div>
 
           {message && (
-            <p className={`mt-4 text-sm ${messageOk ? "text-emerald-600" : "text-rose-500"}`}>{message}</p>
+            <p className={`mt-4 text-sm ${messageOk ? "text-accent" : "text-rose-500"}`}>{message}</p>
           )}
         </section>
 

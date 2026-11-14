@@ -37,7 +37,7 @@ function saveSessionId(docId: number, sessionId: string) {
 
 function AssistantAvatar() {
   return (
-    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-linear-to-br from-emerald-500 to-teal-600 text-xs font-bold text-white shadow-sm shadow-emerald-500/25">
+    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-xs font-bold text-white shadow-sm shadow-accent/25">
       文
     </span>
   );
@@ -62,12 +62,12 @@ function Citations({ citations }: { citations: Citation[] }) {
             }
             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
               openIndex === index
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:text-emerald-600"
+                ? "border-accent/40 bg-accent-wash text-accent-deep"
+                : "border-slate-200 bg-white text-slate-500 hover:border-accent/40 hover:text-accent"
             }`}
             title="点击查看原文片段"
           >
-            <span className="grid size-4 place-items-center rounded-full bg-emerald-100 text-[10px] font-semibold text-emerald-700">
+            <span className="grid size-4 place-items-center rounded-full bg-accent-wash text-[10px] font-semibold text-accent-deep">
               {index + 1}
             </span>
             第 {citation.page} 页
@@ -75,7 +75,7 @@ function Citations({ citations }: { citations: Citation[] }) {
         ))}
       </div>
       {active && (
-        <blockquote className="mt-2 animate-fade-up rounded-xl border-l-2 border-emerald-400 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+        <blockquote className="mt-2 animate-fade-up rounded-xl border-l-2 border-accent bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
           「{active.snippet}」
           <span className="mt-1 block text-[10px] text-slate-400">
             切片 {active.chunk_id}
@@ -299,7 +299,7 @@ export default function ChatPage() {
             </p>
             <Link
               href="/docs"
-              className="mt-4 inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-600"
+              className="mt-4 inline-flex items-center gap-1 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-deep"
             >
               返回文档列表
             </Link>
@@ -344,14 +344,14 @@ export default function ChatPage() {
             )}
             <Link
               href="/docs"
-              className="mt-5 inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-emerald-200 hover:text-emerald-600"
+              className="mt-5 inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-accent/40 hover:text-accent"
             >
               返回文档列表
             </Link>
           </div>
         ) : messages.length === 0 ? (
           <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16 text-center sm:py-20">
-            <span className="grid size-14 place-items-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-xl font-bold text-white shadow-lg shadow-emerald-500/25">
+            <span className="grid size-14 place-items-center rounded-2xl bg-accent text-xl font-bold text-white shadow-lg shadow-accent/25">
               文
             </span>
             <h2 className="mt-4 text-lg font-semibold tracking-tight text-slate-900">
@@ -366,7 +366,7 @@ export default function ChatPage() {
                   key={suggestion}
                   type="button"
                   onClick={() => void send(suggestion)}
-                  className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                  className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs text-slate-600 transition hover:border-accent/40 hover:bg-accent-wash hover:text-accent-deep"
                 >
                   {suggestion}
                 </button>
@@ -381,7 +381,7 @@ export default function ChatPage() {
                   key={index}
                   className="animate-fade-up flex justify-end"
                 >
-                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-white shadow-sm shadow-emerald-600/20">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words text-white shadow-sm shadow-ink/20">
                     {message.content}
                   </div>
                 </div>
@@ -440,7 +440,7 @@ export default function ChatPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm transition focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-500/10"
+            className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm transition focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10"
           >
             <textarea
               ref={textareaRef}
@@ -462,7 +462,7 @@ export default function ChatPage() {
               type="submit"
               disabled={!canAsk || !input.trim()}
               aria-label="发送"
-              className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white transition hover:bg-emerald-600 disabled:bg-slate-100 disabled:text-slate-400"
+              className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white transition hover:bg-accent-deep disabled:bg-slate-100 disabled:text-slate-400"
             >
               {sending ? (
                 <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -487,7 +487,7 @@ export default function ChatPage() {
             {llmConfigured === false ? (
               <>
                 当前为原文摘录模式 ·{" "}
-                <Link href="/settings" className="text-emerald-600 hover:underline">
+                <Link href="/settings" className="text-accent hover:underline">
                   配置 DeepSeek Key
                 </Link>{" "}
                 开启 AI 生成 · 引用核对不受影响

@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
+/* 品牌令牌：纸白 × 墨字 × 批注红
+   批注红取自中文"红笔校对"文化——本产品的核心动作是"核对"。
+   大胆只花在批注红上，其余安静。 */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --color-paper: #fafaf7;
+  --color-ink: #1c1e21;
+  --color-ink-soft: #5b5f66;
+  --color-accent: #c2402a;
+  --color-accent-deep: #a93622;
+  --color-accent-wash: #fbf1ee;
 }
 
 html {
@@ -11,7 +21,7 @@ html {
 }
 
 ::selection {
-  background-color: rgb(16 185 129 / 0.2);
+  background-color: rgb(194 64 42 / 0.16);
 }
 
 * {

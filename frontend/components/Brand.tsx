@@ -9,7 +9,8 @@ export function Brand({
 }) {
   return (
     <Link href={href} className={`inline-flex items-center gap-2.5 ${className}`}>
-      <span className="grid size-9 place-items-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-base font-bold text-white shadow-sm shadow-emerald-500/30">
+      {/* 印章：批注红方块 + 白字「文」——品牌唯一记忆点 */}
+      <span className="grid size-9 place-items-center rounded-lg bg-accent text-base font-bold text-white shadow-sm shadow-accent/25">
         文
       </span>
       <span className="text-lg font-semibold tracking-tight text-slate-900">

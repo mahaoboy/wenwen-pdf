@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, billing, chat, documents, settings
+from app.core.config import get_settings
 from app.db import Base
 from app.db.session import engine, ensure_schema
 
@@ -20,7 +21,7 @@ app = FastAPI(title="文问 WenWen", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=get_settings().allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

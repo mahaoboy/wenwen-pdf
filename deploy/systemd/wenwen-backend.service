@@ -1,0 +1,20 @@
+[Unit]
+Description=WenWen backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+# 部署目录（deploy.sh 会按实际路径生成覆写）
+User=mahao
+WorkingDirectory=/opt/wenwen/backend
+ExecStart=/opt/wenwen/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+# 内存与安全加固
+Environment="TOKENIZERS_PARALLELISM=false"
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

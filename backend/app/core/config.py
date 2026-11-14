@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-zh-v1.5"  # MVP 轻量模型跑通；换 BAAI/bge-m3 仅改配置
     embedding_dim: int = 512
 
+    allowed_origins_raw: str = "http://localhost:3000"  # 逗号分隔；同源部署（nginx）时 CORS 不生效
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins_raw.split(",") if o.strip()]
+
     wechat_pay_mch_id: str = ""
     wechat_pay_api_key: str = ""
     alipay_app_id: str = ""

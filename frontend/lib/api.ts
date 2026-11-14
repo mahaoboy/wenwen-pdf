@@ -9,8 +9,10 @@ import type {
   VerifyResult,
 } from "./types";
 
+// 同源部署（nginx 统一入口）：构建时设 NEXT_PUBLIC_API_BASE="" → 走相对路径 /api
+// 本地开发不设置 → 默认 http://localhost:8000
 export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
+  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000"
 ).replace(/\/+$/, "");
 
 export class ApiError extends Error {

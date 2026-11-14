@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     smtp_from: str = ""  # 发件人，默认取 smtp_user
     smtp_ssl: bool = True  # True=SMTPS(465)；False=STARTTLS(587)
 
+    # ===== 邮件通道选择：smtp | gmail_api =====
+    # gmail_api 复用已授权的 OAuth 凭据（client_secret.json + token.json），stdlib 实现
+    email_transport: str = "smtp"
+    gmail_client_secret_path: str = ""
+    gmail_token_path: str = ""
+    gmail_from: str = ""  # 发件人地址，默认从 Gmail profile 读取
+
     # 自动化测试专用：True 时 captcha 响应回显答案。生产必须为 False。
     captcha_echo: bool = False
 

@@ -26,3 +26,16 @@ def client():
         token = register_verified(c)
         c.headers = {"Authorization": f"Bearer {token}"}
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _isolate_email_transport():
+    """测试默认禁用真实邮件通道（gmail_api/smtp），需要发信的用例自行设置。"""
+    settings = get_settings()
+    old_transport = settings.email_transport
+    old_smtp_host = settings.smtp_host
+    settings.email_transport = ""
+    settings.smtp_host = ""
+    yield
+    settings.email_transport = old_transport
+    settings.smtp_host = old_smtp_host

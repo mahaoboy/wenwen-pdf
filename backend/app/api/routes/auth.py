@@ -29,7 +29,7 @@ from app.schemas import (
 )
 from app.services.captcha import new_captcha, verify_captcha
 from app.services.email_codes import issue, seconds_until_resend, verify as verify_email_code
-from app.services.email_sender import send_verification_email, smtp_configured
+from app.services.email_sender import email_configured, send_verification_email
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)) -> RegisterRes
     return RegisterResponse(
         email=email,
         verification_required=True,
-        smtp_configured=smtp_configured(),
+        smtp_configured=email_configured(),
         # 开发模式（SMTP 未配置）：验证码直接返回页面，明确标注；配置后恒为 None
         dev_code=None if sent else code,
     )
@@ -125,7 +125,7 @@ def resend_code(req: ResendRequest, db: Session = Depends(get_db)) -> RegisterRe
     return RegisterResponse(
         email=email,
         verification_required=True,
-        smtp_configured=smtp_configured(),
+        smtp_configured=email_configured(),
         dev_code=None if sent else code,
     )
 

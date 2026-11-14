@@ -34,3 +34,4 @@ Thumbs.db
 
 # 测试缓存
 .pytest_cache/
+backend/.secrets/

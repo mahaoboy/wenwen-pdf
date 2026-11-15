@@ -39,6 +39,9 @@ class Document(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")  # pending/parsing/ready/error
     page_count: Mapped[int] = mapped_column(Integer, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    # 解析完成后由 LLM 生成的文档摘要与动态建议问题（增值首屏；无 Key 时留空）
+    summary: Mapped[str] = mapped_column(Text, default="")
+    suggestions: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User"] = relationship(back_populates="docs")

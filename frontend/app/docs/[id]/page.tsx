@@ -99,6 +99,7 @@ export default function ChatPage() {
   const [chatError, setChatError] = useState("");
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
+  const [reparsing, setReparsing] = useState(false);
   const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -143,6 +144,18 @@ export default function ChatPage() {
       setLoading(false);
     }
   }, [docId, router]);
+
+  async function handleReparse() {
+    setReparsing(true);
+    try {
+      await api.reparseDocument(docId);
+      setDoc((prev) => (prev ? { ...prev, status: "pending" } : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "重新解析失败");
+    } finally {
+      setReparsing(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -198,22 +211,53 @@ export default function ChatPage() {
     setSending(true);
     setMessages((prev) => [...prev, optimistic]);
 
+    // 流式助手消息（增量追加）
+    const streamMsg: ChatMessage = { role: "assistant", content: "", citations: [] };
+    let streamInserted = false;
+    const appendDelta = (text: string) => {
+      streamMsg.content += text;
+      setMessages((prev) => {
+        if (!streamInserted) {
+          streamInserted = true;
+          return [...prev, streamMsg];
+        }
+        return [...prev.slice(0, -1), { ...streamMsg }];
+      });
+    };
+
     try {
-      const response = await api.chat(docId, question, sessionId);
+      let response;
+      try {
+        // 流式优先
+        response = await api.chatStream(docId, question, sessionId, appendDelta);
+      } catch (streamErr) {
+        // 4xx（额度/文档错误）直接呈现；网络/流异常回退非流式
+        if (streamErr instanceof ApiError && streamErr.status < 500 && streamErr.status !== 0) {
+          throw streamErr;
+        }
+        setMessages((prev) => prev.filter((item) => item !== streamMsg));
+        streamInserted = false;
+        response = await api.chat(docId, question, sessionId);
+      }
+
       if (response.session_id) {
         setSessionId(response.session_id);
         saveSessionId(docId, response.session_id);
       }
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: response.answer,
-          citations: response.citations ?? [],
-        },
-      ]);
+      // 用最终结果覆盖流式占位（含引用渲染）
+      setMessages((prev) => {
+        const base = streamInserted ? prev.slice(0, -1) : prev;
+        return [
+          ...base,
+          {
+            role: "assistant",
+            content: response.answer,
+            citations: response.citations ?? [],
+          },
+        ];
+      });
     } catch (err) {
-      setMessages((prev) => prev.filter((item) => item !== optimistic));
+      setMessages((prev) => prev.filter((item) => item !== optimistic && item !== streamMsg));
       setInput((current) => current || question);
       setChatError(err instanceof ApiError ? err.message : "发送失败，请重试");
     } finally {
@@ -326,8 +370,16 @@ export default function ChatPage() {
                   文档解析失败
                 </p>
                 <p className="mt-1 text-sm text-slate-400">
-                  请返回列表删除后重新上传，或检查文件是否为有效 PDF。
+                  检查文件是否为有效 PDF，或直接重试解析。
                 </p>
+                <button
+                  type="button"
+                  onClick={() => void handleReparse()}
+                  disabled={reparsing}
+                  className="mt-4 inline-flex items-center gap-1 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-50"
+                >
+                  {reparsing ? "重新解析中…" : "重新解析"}
+                </button>
               </>
             ) : (
               <>
@@ -360,8 +412,19 @@ export default function ChatPage() {
             <p className="mt-1.5 text-sm text-slate-500">
               「{doc.filename}」已解析完成，答案会标注来源页码。
             </p>
+
+            {doc?.summary && (
+              <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-6 place-items-center rounded-md bg-accent text-[11px] font-bold text-white">文</span>
+                  <span className="text-xs font-semibold text-slate-700">AI 摘要</span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{doc.summary}</p>
+              </div>
+            )}
+
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((suggestion) => (
+              {(doc?.suggestions?.length ? doc.suggestions : SUGGESTIONS).map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"

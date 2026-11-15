@@ -59,8 +59,26 @@ _PARSE_SLOTS = threading.BoundedSemaphore(1)
 def list_documents(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[Document]:
-    return db.query(Document).filter(Document.user_id == user.id).order_by(Document.created_at.desc()).all()
+) -> list[DocumentOut]:
+    docs = db.query(Document).filter(Document.user_id == user.id).order_by(Document.created_at.desc()).all()
+    out: list[DocumentOut] = []
+    for d in docs:
+        try:
+            suggestions = json.loads(d.suggestions) if d.suggestions else []
+        except ValueError:
+            suggestions = []
+        out.append(
+            DocumentOut(
+                id=d.id,
+                filename=d.filename,
+                status=d.status,
+                page_count=d.page_count,
+                chunk_count=d.chunk_count,
+                summary=d.summary or "",
+                suggestions=suggestions,
+            )
+        )
+    return out
 
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
@@ -71,7 +89,7 @@ def upload_document(
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Document:
+) -> DocumentOut:
     settings = get_settings()
     doc_count = db.query(Document).filter(Document.user_id == user.id).count()
     limit = settings.free_doc_limit  # TODO(阶段5): 按 user.plan 取对应档位额度
@@ -104,7 +122,16 @@ def upload_document(
 
     # 后台流水线：提取 → 切片 → 入库（模块2），完成后 status=ready
     background_tasks.add_task(_parse_document, doc.id)
-    return doc
+    record("doc_upload", ip=client_ip(request), user_id=user.id, meta={"filename": doc.filename, "size": file.size or 0})
+    return DocumentOut(
+        id=doc.id,
+        filename=doc.filename,
+        status=doc.status,
+        page_count=doc.page_count,
+        chunk_count=doc.chunk_count,
+        summary=doc.summary or "",
+        suggestions=[],
+    )
 
 
 def _parse_document(doc_id: int) -> None:
@@ -119,6 +146,9 @@ def _parse_document(doc_id: int) -> None:
 
 def _run_parse(doc_id: int) -> None:
     db = SessionLocal()
+    # 幂等清理：重解析场景下移除旧切片与向量，避免重复索引
+    db.query(Chunk).filter(Chunk.document_id == doc_id).delete()
+    db.commit()
     try:
         doc = db.get(Document, doc_id)
         if doc is None:
@@ -153,6 +183,14 @@ def _run_parse(doc_id: int) -> None:
         from app.services.retrieval.hybrid import ensure_index
 
         ensure_index(doc.id, chunks)
+
+        # 增值首屏：摘要 + 动态建议问题（无 Key / 失败时留空，不阻塞解析）
+        from app.services.generation.summary import generate_summary_and_suggestions
+
+        summary, suggestions = generate_summary_and_suggestions(doc.id, chunks)
+        doc.summary = summary
+        doc.suggestions = json.dumps(suggestions, ensure_ascii=False)
+        db.commit()
 
         doc.status = "ready"
         db.commit()
@@ -192,6 +230,28 @@ def delete_document(
     from app.services.cache import invalidate_doc
 
     invalidate_doc(doc.id)
+
+
+@router.post("/{doc_id}/reparse", status_code=status.HTTP_202_ACCEPTED)
+def reparse_document(
+    request: Request,
+    doc_id: int,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """失败文档自助重解析：error → pending，重新排队后台流水线。"""
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
+    if doc is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "文档不存在")
+    if doc.status != "error":
+        raise HTTPException(status.HTTP_409_CONFLICT, "仅解析失败的文档支持重新解析")
+
+    doc.status = "pending"
+    db.commit()
+    background_tasks.add_task(_parse_document, doc.id)
+    record("doc_reparse", ip=client_ip(request), user_id=user.id, meta={"doc_id": doc_id})
+    return {"id": doc.id, "status": "pending"}
 
 
 def recover_stuck_documents() -> int:

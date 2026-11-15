@@ -4,9 +4,13 @@ POST /api/chat/ask：提问（带 session 多轮 + 额度闸 + 缓存闸 + 幻�
 GET  /api/chat/history：拉取某文档某会话的历史消息
 """
 import json
+import logging
 import uuid
 
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -15,7 +19,9 @@ from app.db import Document, Message, QuotaUsage, User
 from app.db.session import get_db
 from app.schemas import ChatRequest, ChatResponse
 from app.services.cache import get as cache_get, put as cache_put
+from app.services.generation import prompts
 from app.services.generation.answer import generate_answer
+from app.services.generation.llm import chat_completion_stream
 from app.services.generation.citations import extract_citations
 from app.services.metrics import client_ip, record
 from app.services.retrieval import hybrid
@@ -145,3 +151,106 @@ def history(
         }
         for m in msgs
     ]
+
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/documents/{doc_id}/stream", response_class=StreamingResponse)
+def stream(
+    request: Request,
+    doc_id: int,
+    req: ChatRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """流式问答（SSE）：体验与 /ask 完全一致（额度/缓存/引用/落库），仅传输方式不同。"""
+    doc = _require_doc(db, doc_id, user)
+    session_id = req.session_id or uuid.uuid4().hex
+    history = _history(db, doc.id, session_id)
+    last_round = tuple(history[-1:]) if history else ()
+
+    # 成本闸：缓存命中直接返回（消息照常落库，不扣额度）
+    cached = cache_get(doc.id, req.question, last_round)
+    if cached is not None:
+        db.add(Message(document_id=doc.id, session_id=session_id, role="user", content=req.question))
+        db.add(
+            Message(
+                document_id=doc.id,
+                session_id=session_id,
+                role="assistant",
+                content=cached["answer"],
+                citations=json.dumps(cached["citations"], ensure_ascii=False),
+            )
+        )
+        db.commit()
+
+        def cached_gen():
+            yield _sse({"type": "delta", "text": cached["answer"]})
+            yield _sse({"type": "done", "citations": cached["citations"], "session_id": session_id, "mode": cached["mode"]})
+
+        return StreamingResponse(cached_gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    # 额度闸（响应头发出前检查，保证 402 能正确返回）
+    settings = get_settings()
+    usage = db.query(QuotaUsage).filter(QuotaUsage.user_id == user.id).first()
+    q_used = usage.question_count if usage else 0
+    q_limit = settings.free_question_limit
+    if q_used >= q_limit:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, f"提问次数已达上限（{q_limit}），请升级套餐")
+
+    # 检索（生成前完成，错误可正常抛 HTTP）
+    retrieved = hybrid.retrieve(doc.id, req.question)
+
+    def gen():
+        chunks_iter = None
+        full = ""
+        mode = "llm"
+        try:
+            if retrieved:
+                messages = prompts.build_messages(req.question, retrieved, history)
+                chunks_iter = chat_completion_stream(messages, api_key=user.deepseek_api_key)
+            else:
+                from app.services.generation.answer import _extractive
+
+                chunks_iter = iter([_extractive(req.question, [])])
+                mode = "extractive"
+            yield _sse({"type": "meta", "session_id": session_id})
+            for delta in chunks_iter:
+                full += delta
+                yield _sse({"type": "delta", "text": delta})
+        except Exception:
+            logger.exception("流式生成失败 doc=%s", doc.id)
+            yield _sse({"type": "error", "message": "生成中断，请重试"})
+            return
+
+        answer = full.strip() or "（无输出）"
+        if not retrieved:
+            answer = "文档中未找到相关内容。"
+        citations = extract_citations(answer, retrieved)
+
+        db.add(Message(document_id=doc.id, session_id=session_id, role="user", content=req.question))
+        db.add(
+            Message(
+                document_id=doc.id,
+                session_id=session_id,
+                role="assistant",
+                content=answer,
+                citations=json.dumps(citations, ensure_ascii=False),
+            )
+        )
+        if usage is None:
+            db.add(QuotaUsage(user_id=user.id, question_count=1))
+        else:
+            usage.question_count += 1
+        db.commit()
+        cache_put(doc.id, req.question, {"answer": answer, "citations": citations, "mode": mode}, last_round)
+        record("chat", ip=client_ip(request), user_id=user.id, meta={"question_chars": len(req.question), "mode": mode})
+        yield _sse({"type": "done", "citations": citations, "session_id": session_id, "mode": mode})
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

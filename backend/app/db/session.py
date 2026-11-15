@@ -26,6 +26,11 @@ def ensure_schema() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN deepseek_api_key VARCHAR(255) NOT NULL DEFAULT ''"))
         if cols and "email_verified" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 1"))
+        doc_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(documents)"))]
+        if doc_cols and "summary" not in doc_cols:
+            conn.execute(text("ALTER TABLE documents ADD COLUMN summary TEXT NOT NULL DEFAULT ''"))
+        if doc_cols and "suggestions" not in doc_cols:
+            conn.execute(text("ALTER TABLE documents ADD COLUMN suggestions TEXT NOT NULL DEFAULT '[]'"))
         conn.commit()
 
 

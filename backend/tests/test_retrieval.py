@@ -5,27 +5,9 @@ import numpy as np
 import pytest
 
 from app.services.retrieval import bm25, embeddings, hybrid, vector_store
+from tests.conftest import fake_embed
 
 DIM = 64
-
-
-def fake_embed(texts: list[str]) -> list[list[float]]:
-    """确定性字符哈希嵌入：共享字符越多越相似，够测试用。"""
-    out = []
-    for t in texts:
-        v = np.zeros(DIM, dtype=np.float32)
-        for ch in t:
-            bucket = int(hashlib.md5(ch.encode()).hexdigest(), 16) % DIM
-            v[bucket] += 1.0
-        n = float(np.linalg.norm(v)) or 1.0
-        out.append((v / n).tolist())
-    return out
-
-
-@pytest.fixture
-def stub_embed(monkeypatch):
-    monkeypatch.setattr(embeddings, "embed", fake_embed)
-    yield
 
 
 # ---------- vector_store ----------

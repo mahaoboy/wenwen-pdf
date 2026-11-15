@@ -3,6 +3,7 @@ import type {
   AdminStats,
   AuthResponse,
   CaptchaData,
+  Citation,
   ChatMessage,
   ChatResponse,
   DocumentItem,
@@ -210,6 +211,77 @@ export const api = {
 
   getQuota(): Promise<QuotaInfo> {
     return request<QuotaInfo>("/api/billing/quota");
+  },
+
+  async chatStream(
+    docId: number,
+    question: string,
+    sessionId: string | null,
+    onDelta: (text: string) => void,
+  ): Promise<{ citations: Citation[]; session_id: string; mode: string; answer: string }> {
+    const token = getToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const resp = await fetch(`${API_BASE}/api/chat/documents/${docId}/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        document_id: docId,
+        question,
+        session_id: sessionId || null,
+      }),
+    });
+
+    if (!resp.ok) {
+      let detail = `请求失败（HTTP ${resp.status}）`;
+      try {
+        const body = await resp.json();
+        if (typeof body.detail === "string") detail = body.detail;
+      } catch {
+        /* 保留默认信息 */
+      }
+      throw new ApiError(resp.status, detail);
+    }
+    if (!resp.body) throw new ApiError(0, "浏览器不支持流式响应");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let answer = "";
+    let citations: Citation[] = [];
+    let currentSession = sessionId || "";
+    let mode = "llm";
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+      for (const part of parts) {
+        if (!part.startsWith("data: ")) continue;
+        const event = JSON.parse(part.slice(6));
+        if (event.type === "delta") {
+          answer += event.text;
+          onDelta(event.text);
+        } else if (event.type === "done") {
+          citations = event.citations ?? [];
+          currentSession = event.session_id;
+          mode = event.mode;
+        } else if (event.type === "error") {
+          throw new ApiError(500, event.message ?? "生成中断");
+        }
+      }
+    }
+    return { citations, session_id: currentSession, mode, answer };
+  },
+
+  reparseDocument(docId: number): Promise<{ id: number; status: string }> {
+    return request<{ id: number; status: string }>(
+      `/api/documents/${docId}/reparse`,
+      { method: "POST" },
+    );
   },
 
   recordVisit(): Promise<{ ok: boolean }> {

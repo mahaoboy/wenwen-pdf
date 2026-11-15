@@ -58,8 +58,13 @@ def record(event_type: str, ip: str = "", user_id: int | None = None, meta: dict
 
 
 def record_attack(event_type: str, ip: str, meta: dict | None = None) -> None:
-    """记录攻击事件；达到阈值时发告警邮件（带冷却）。"""
+    """记录攻击事件；达到阈值时发告警邮件（带冷却）。
+
+    testclient（测试客户端标记）不触发告警——否则测试批量注册会轰炸邮箱。
+    """
     record(event_type, ip=ip, meta=meta)
+    if ip == "testclient":
+        return
     rule = ATTACK_RULES.get(event_type)
     if rule is None:
         return

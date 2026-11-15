@@ -47,6 +47,8 @@ class DocumentOut(BaseModel):
     status: str
     page_count: int
     chunk_count: int
+    summary: str = ""
+    suggestions: list[str] = []
 
     model_config = {"from_attributes": True}
 

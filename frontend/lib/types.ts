@@ -11,6 +11,8 @@ export interface DocumentItem {
   status: DocumentStatus;
   page_count: number;
   chunk_count: number;
+  summary?: string;
+  suggestions?: string[];
 }
 
 export interface Citation {

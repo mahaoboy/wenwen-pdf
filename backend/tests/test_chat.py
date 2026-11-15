@@ -1,34 +1,9 @@
 """模块4测试：问答 + 引用校验 + 多轮对话 + 缓存/额度闸（stub 嵌入与 LLM，不依赖网络）。"""
-import hashlib
-
-import numpy as np
 import pytest
 
 from app.services.generation import answer as answer_svc
 from app.services.generation import llm as llm_svc
-from app.services.retrieval import embeddings
 from tests.helpers import current_user_id, register_verified
-
-DIM = 64
-
-
-def fake_embed(texts: list[str]) -> list[list[float]]:
-    out = []
-    for t in texts:
-        v = np.zeros(DIM, dtype=np.float32)
-        for ch in t:
-            bucket = int(hashlib.md5(ch.encode()).hexdigest(), 16) % DIM
-            v[bucket] += 1.0
-        n = float(np.linalg.norm(v)) or 1.0
-        out.append((v / n).tolist())
-    return out
-
-
-@pytest.fixture
-def stub_embed(monkeypatch):
-    monkeypatch.setattr(embeddings, "embed", fake_embed)
-    yield
-
 
 def _stub_llm_cite_first_chunk(monkeypatch):
     """假 LLM：从拼好的 prompt 里取第一个检索片段 chunk_id 并引用它（模拟真实引用行为）。"""
@@ -43,43 +18,6 @@ def _stub_llm_cite_first_chunk(monkeypatch):
 
     monkeypatch.setattr(llm_svc, "chat_completion", fake_completion)
     monkeypatch.setattr(answer_svc.llm, "chat_completion", fake_completion)
-
-
-@pytest.fixture
-def seeded_doc(client):
-    """向 DB 灌一个归属于当前测试用户的已就绪文档（三条切片）。"""
-    from app.db import Chunk, Document
-    from app.db.session import SessionLocal
-
-    doc_id = 876543
-    user_id = current_user_id()
-    db = SessionLocal()
-    try:
-        db.add(Document(id=doc_id, user_id=user_id, filename="t.pdf", file_path="t.pdf", status="ready"))
-        texts = [
-            "甲方违反合同约定，应当承担违约责任，赔偿损失。",
-            "乙方应当在收货后三十日内支付货款。",
-            "本合同一式两份，自双方签字之日起生效。",
-        ]
-        for seq, text in enumerate(texts):
-            db.add(Chunk(
-                id=f"{doc_id}-c{seq}", document_id=doc_id, seq=seq, page=1,
-                char_start=0, char_end=len(text), bbox_json="[]", text=text, snippet=text[:20],
-            ))
-        db.commit()
-    finally:
-        db.close()
-    yield doc_id
-    from app.services.retrieval import hybrid
-
-    hybrid.delete_doc(doc_id)
-    db = SessionLocal()
-    try:
-        db.query(Chunk).filter(Chunk.document_id == doc_id).delete()
-        db.query(Document).filter(Document.id == doc_id).delete()
-        db.commit()
-    finally:
-        db.close()
 
 
 @pytest.fixture(autouse=True)

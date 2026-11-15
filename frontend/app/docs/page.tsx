@@ -96,6 +96,16 @@ export default function DocsPage() {
     }
   }
 
+  async function handleReparse(docId: number) {
+    setError("");
+    try {
+      await api.reparseDocument(docId);
+      void load(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "重新解析失败");
+    }
+  }
+
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
@@ -319,6 +329,15 @@ export default function DocsPage() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
+                    {doc.status === "error" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReparse(doc.id)}
+                        className="rounded-lg px-2.5 py-1.5 text-xs text-accent transition hover:bg-accent-wash"
+                      >
+                        重新解析
+                      </button>
+                    )}
                     <Link
                       href={`/docs/${doc.id}`}
                       className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${

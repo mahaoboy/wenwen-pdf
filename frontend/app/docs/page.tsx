@@ -37,6 +37,7 @@ export default function DocsPage() {
       setDocuments(docs);
       if (quotaInfo) setQuota(quotaInfo);
       setError("");
+      void api.recordVisit().catch(() => undefined);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "加载文档列表失败");
     } finally {

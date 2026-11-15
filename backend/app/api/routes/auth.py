@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+
+from app.services.metrics import client_ip, record, record_attack
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import User
@@ -51,14 +53,17 @@ def get_captcha() -> dict:
     return out
 
 
-def _require_captcha(captcha_id: str, captcha_code: str) -> None:
+def _require_captcha(request: Request, captcha_id: str, captcha_code: str) -> None:
     if not verify_captcha(captcha_id or "", captcha_code or ""):
+        ip = client_ip(request)
+        record_attack("attack_captcha_fail", ip)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "图片验证码错误或已过期，请刷新后重试")
 
 
 @router.post("/register", response_model=RegisterResponse)
-def register(req: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
-    _require_captcha(req.captcha_id, req.captcha_code)
+def register(request: Request, req: RegisterRequest, db: Session = Depends(get_db)) -> RegisterResponse:
+    ip = client_ip(request)
+    _require_captcha(request, req.captcha_id, req.captcha_code)
 
     email = req.email.strip().lower()
     exists = db.query(User).filter(User.email == email).first()
@@ -70,6 +75,8 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)) -> RegisterRes
     db.add(user)
     db.commit()
     db.refresh(user)
+    record("register", ip=ip, user_id=user.id)
+    record_attack("attack_register_burst", ip)
 
     issued = issue(email)
     if issued is None:  # 冷却期内（理论少见：新注册用户）
@@ -100,18 +107,19 @@ def verify_email(req: VerifyEmailRequest, db: Session = Depends(get_db)) -> Toke
 
     user.email_verified = True
     db.commit()
+    record("email_verified", user_id=user.id)
     return TokenResponse(access_token=create_access_token(str(user.id)))
 
 
 @router.post("/resend", response_model=RegisterResponse)
-def resend_code(req: ResendRequest, db: Session = Depends(get_db)) -> RegisterResponse:
+def resend_code(request: Request, req: ResendRequest, db: Session = Depends(get_db)) -> RegisterResponse:
     """重发验证码：需要新的图片验证码。"""
+    _require_captcha(request, req.captcha_id, req.captcha_code)
     user = db.query(User).filter(User.email == req.email.strip().lower()).first()
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "账号不存在")
     if user.email_verified:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "该邮箱已验证，无需重发")
-    _require_captcha(req.captcha_id, req.captcha_code)
 
     email = user.email
     issued = issue(email)
@@ -131,13 +139,16 @@ def resend_code(req: ResendRequest, db: Session = Depends(get_db)) -> RegisterRe
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(req: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    _require_captcha(req.captcha_id, req.captcha_code)
+def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+    ip = client_ip(request)
+    _require_captcha(request, req.captcha_id, req.captcha_code)
 
     email = req.email.strip().lower()
     user = db.query(User).filter(User.email == email).first()
     if user is None or not verify_password(req.password, user.password_hash):
+        record_attack("attack_login_fail", ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     if not user.email_verified:
         raise HTTPException(status.HTTP_403_FORBIDDEN, _UNVERIFIED_MSG)
+    record("login", ip=ip, user_id=user.id)
     return TokenResponse(access_token=create_access_token(str(user.id)))

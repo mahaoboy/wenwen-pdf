@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, billing, chat, documents, settings
+from app.api.routes import auth, billing, chat, documents, metrics, settings
 from app.core.config import get_settings
 from app.db import Base
 from app.db.session import engine, ensure_schema
@@ -38,6 +38,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(metrics.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 
 

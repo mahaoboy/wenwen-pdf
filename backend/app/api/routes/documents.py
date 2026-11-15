@@ -7,7 +7,7 @@ import shutil
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -15,6 +15,7 @@ from app.core.config import get_settings
 from app.db import Chunk, Document, Message, User
 from app.db.session import SessionLocal, get_db
 from app.schemas import DocumentOut
+from app.services.metrics import client_ip, record
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ def list_documents(
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 @router.post("/upload", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 def upload_document(
+    request: Request,
     file: UploadFile,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
@@ -167,6 +169,7 @@ def _run_parse(doc_id: int) -> None:
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(
+    request: Request,
     doc_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -181,7 +184,8 @@ def delete_document(
     db.query(Chunk).filter(Chunk.document_id == doc.id).delete()
     db.query(Message).filter(Message.document_id == doc.id).delete()
     db.delete(doc)
-    db.commit()  # 先提交释放 SQLite 写锁，再做检索层清理（二次会话 DELETE 避免撞锁）
+    db.commit()
+    record("doc_delete", ip=client_ip(request), user_id=user.id)  # 先提交释放 SQLite 写锁，再做检索层清理（二次会话 DELETE 避免撞锁）
     from app.services.retrieval.hybrid import delete_doc as delete_retrieval
 
     delete_retrieval(doc.id)  # 向量索引 + BM25 缓存 + 残余切片（幂等）

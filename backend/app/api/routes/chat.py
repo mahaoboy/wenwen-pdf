@@ -6,7 +6,7 @@ GET  /api/chat/history：拉取某文档某会话的历史消息
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -17,6 +17,7 @@ from app.schemas import ChatRequest, ChatResponse
 from app.services.cache import get as cache_get, put as cache_put
 from app.services.generation.answer import generate_answer
 from app.services.generation.citations import extract_citations
+from app.services.metrics import client_ip, record
 from app.services.retrieval import hybrid
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -56,10 +57,12 @@ def _require_doc(db: Session, doc_id: int, user: User) -> Document:
 
 @router.post("/ask", response_model=ChatResponse)
 def ask(
+    request: Request,
     req: ChatRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChatResponse:
+    ip = client_ip(request)
     settings = get_settings()
     doc = _require_doc(db, req.document_id, user)
     session_id = req.session_id or uuid.uuid4().hex
@@ -92,6 +95,7 @@ def ask(
     q_used = usage.question_count if usage else 0
     q_limit = settings.free_question_limit  # TODO(阶段5): 按 user.plan 取对应档位额度
     if q_used >= q_limit:
+        record("quota_blocked", ip=ip, user_id=user.id)
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, f"提问次数已达上限（{q_limit}），请升级套餐")
 
     # 混合检索 → 生成（用户自备 Key 优先）→ 引用校验（幻觉闸：引用必须来自真实检索结果）
@@ -116,6 +120,7 @@ def ask(
     db.commit()
 
     cache_put(doc.id, req.question, {"answer": generated["answer"], "citations": citations, "mode": generated["mode"]}, last_round)
+    record("chat", ip=ip, user_id=user.id, meta={"question_chars": len(req.question), "mode": generated["mode"]})
     return ChatResponse(answer=generated["answer"], citations=citations, session_id=session_id, mode=generated["mode"])
 
 

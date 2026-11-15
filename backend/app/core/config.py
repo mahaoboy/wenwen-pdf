@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # 自动化测试专用：True 时 captcha 响应回显答案。生产必须为 False。
     captcha_echo: bool = False
 
+    # ===== 轻量监控 =====
+    admin_key: str = ""      # 管理面板密钥（空 = 管理接口禁用）
+    alert_email: str = ""    # 攻击告警收件邮箱（空 = 发到 Gmail 发件账号）
+
     @property
     def allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins_raw.split(",") if o.strip()]

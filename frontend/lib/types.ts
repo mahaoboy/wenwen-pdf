@@ -63,3 +63,16 @@ export interface RegisterOutcome {
   smtp_configured: boolean;
   dev_code: string | null;
 }
+
+export interface AdminStats {
+  users_total: number;
+  users_verified: number;
+  docs_total: number;
+  questions_total: number;
+  tokens_prompt: number;
+  tokens_completion: number;
+  visits_24h: number;
+  chats_24h: number;
+  registers_24h: number;
+  recent_attacks: Array<{ ts: string; type: string; ip: string; meta: string }>;
+}

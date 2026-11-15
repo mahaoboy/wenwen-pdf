@@ -87,3 +87,16 @@ class QuotaUsage(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
     question_count: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+class MetricsEvent(Base):
+    """轻量监控事件：注册/登录/问答/上传/攻击尝试等，一行一事件。"""
+
+    __tablename__ = "metrics_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+    event_type: Mapped[str] = mapped_column(String(48), index=True)
+    ip: Mapped[str] = mapped_column(String(64), default="", index=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    meta: Mapped[str] = mapped_column(Text, default="{}")

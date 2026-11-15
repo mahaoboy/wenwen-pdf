@@ -4,6 +4,7 @@ from __future__ import annotations
 from openai import OpenAI
 
 from app.core.config import get_settings
+from app.services.metrics import record
 
 
 def chat_completion(messages: list[dict], api_key: str | None = None, temperature: float = 0.1) -> str:
@@ -17,4 +18,13 @@ def chat_completion(messages: list[dict], api_key: str | None = None, temperatur
         temperature=temperature,
         stream=False,
     )
+    if resp.usage:
+        record(
+            "llm_tokens",
+            meta={
+                "model": settings.deepseek_model,
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+            },
+        )
     return resp.choices[0].message.content or ""

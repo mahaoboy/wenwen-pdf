@@ -1,5 +1,6 @@
 import { clearToken, getToken } from "./auth";
 import type {
+  AdminStats,
   AuthResponse,
   CaptchaData,
   ChatMessage,
@@ -209,6 +210,18 @@ export const api = {
 
   getQuota(): Promise<QuotaInfo> {
     return request<QuotaInfo>("/api/billing/quota");
+  },
+
+  recordVisit(): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>("/api/metrics/visit", { method: "POST" }, { redirectOn401: false });
+  },
+
+  getAdminStats(key: string): Promise<AdminStats> {
+    return request<AdminStats>(
+      "/api/admin/stats",
+      { headers: { "X-Admin-Key": key } },
+      { redirectOn401: false },
+    );
   },
 
   getLlmStatus(): Promise<LlmStatus> {

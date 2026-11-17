@@ -66,6 +66,12 @@ export interface RegisterOutcome {
   dev_code: string | null;
 }
 
+export interface ForgotPasswordOutcome {
+  email: string;
+  smtp_configured: boolean;
+  dev_reset_url: string | null;
+}
+
 export interface AdminStats {
   users_total: number;
   users_verified: number;

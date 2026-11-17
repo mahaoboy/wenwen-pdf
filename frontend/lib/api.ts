@@ -7,6 +7,7 @@ import type {
   ChatMessage,
   ChatResponse,
   DocumentItem,
+  ForgotPasswordOutcome,
   LlmStatus,
   QuotaInfo,
   RegisterOutcome,
@@ -151,6 +152,29 @@ export const api = {
           captcha_code: captchaCode,
         }),
       },
+      { redirectOn401: false },
+    );
+  },
+
+  forgotPassword(
+    email: string,
+    captchaId: string,
+    captchaCode: string,
+  ): Promise<ForgotPasswordOutcome> {
+    return request<ForgotPasswordOutcome>(
+      "/api/auth/forgot-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, captcha_id: captchaId, captcha_code: captchaCode }),
+      },
+      { redirectOn401: false },
+    );
+  },
+
+  resetPassword(token: string, newPassword: string): Promise<AuthResponse> {
+    return request<AuthResponse>(
+      "/api/auth/reset-password",
+      { method: "POST", body: JSON.stringify({ token, new_password: newPassword }) },
       { redirectOn401: false },
     );
   },

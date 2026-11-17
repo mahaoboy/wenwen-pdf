@@ -15,7 +15,6 @@ from email.utils import formatdate
 from pathlib import Path
 
 from app.core.config import Settings
-from app.services.email_template import build_html, build_subject, build_text
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -99,15 +98,15 @@ def gmail_api_configured(settings: Settings) -> bool:
     return bool(settings.gmail_client_secret_path and settings.gmail_token_path)
 
 
-def send_via_gmail(settings: Settings, to: str, code: str) -> bool:
+def send_via_gmail(settings: Settings, to: str, subject: str, text: str, html: str) -> bool:
     access = load_access_token(settings)
     msg = EmailMessage()
     msg["To"] = to
     msg["From"] = sender_email(settings)
-    msg["Subject"] = build_subject(code)
+    msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=False)
-    msg.set_content(build_text(code))
-    msg.add_alternative(build_html(code), subtype="html")
+    msg.set_content(text)
+    msg.add_alternative(html, subtype="html")
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     req = urllib.request.Request(

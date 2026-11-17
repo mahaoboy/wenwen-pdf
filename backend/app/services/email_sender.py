@@ -11,7 +11,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from app.core.config import get_settings
-from app.services.email_template import build_html, build_subject, build_text
+from app.services.email_template import (
+    build_html,
+    build_reset_html,
+    build_reset_subject,
+    build_reset_text,
+    build_subject,
+    build_text,
+)
 from app.services.gmail_sender import gmail_api_configured, send_via_gmail
 
 logger = logging.getLogger(__name__)
@@ -25,13 +32,14 @@ def email_configured() -> bool:
     return bool(s.smtp_host and s.smtp_user and s.smtp_pass)
 
 
-def send_verification_email(to: str, code: str) -> bool:
+def _send_via_channels(to: str, subject: str, text: str, html: str) -> bool:
+    """双通道发送：优先 Gmail API，降级 SMTP。"""
     s = get_settings()
     if s.email_transport == "gmail_api" and gmail_api_configured(s):
         try:
-            sent = send_via_gmail(s, to, code)
+            sent = send_via_gmail(s, to, subject, text, html)
             if sent:
-                logger.info("验证码邮件已发送（Gmail API）to=%s", to)
+                logger.info("邮件已发送（Gmail API）to=%s subject=%s", to, subject)
             return sent
         except Exception:
             logger.exception("Gmail API 发送失败 to=%s", to)
@@ -42,11 +50,11 @@ def send_verification_email(to: str, code: str) -> bool:
         return False
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = build_subject(code)
+    msg["Subject"] = subject
     msg["From"] = s.smtp_from or s.smtp_user
     msg["To"] = to
-    msg.attach(MIMEText(build_text(code), "plain", "utf-8"))
-    msg.attach(MIMEText(build_html(code), "html", "utf-8"))
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
         if s.smtp_ssl:
@@ -58,8 +66,19 @@ def send_verification_email(to: str, code: str) -> bool:
                 server.starttls()
                 server.login(s.smtp_user, s.smtp_pass)
                 server.sendmail(s.smtp_from or s.smtp_user, [to], msg.as_string())
-        logger.info("验证码邮件已发送 to=%s", to)
+        logger.info("邮件已发送 to=%s subject=%s", to, subject)
         return True
     except Exception:
-        logger.exception("验证码邮件发送失败 to=%s", to)
+        logger.exception("邮件发送失败 to=%s", to)
         return False
+
+
+def send_verification_email(to: str, code: str) -> bool:
+    return _send_via_channels(to, build_subject(code), build_text(code), build_html(code))
+
+
+def send_password_reset_email(to: str, reset_url: str) -> bool:
+    """发送密码重置链接邮件。"""
+    return _send_via_channels(
+        to, build_reset_subject(), build_reset_text(reset_url), build_reset_html(reset_url)
+    )

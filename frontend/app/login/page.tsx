@@ -319,6 +319,14 @@ export default function LoginPage() {
           <a href="/" className="text-slate-400 transition hover:text-accent">
             ← 返回文问首页
           </a>
+          {mode === "login" && (
+            <>
+              <span className="mx-2 text-slate-300">·</span>
+              <a href="/reset" className="text-slate-400 transition hover:text-accent">
+                忘记密码？
+              </a>
+            </>
+          )}
         </p>
       </div>
     </div>

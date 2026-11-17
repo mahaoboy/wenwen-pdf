@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # 自动化测试专用：True 时 captcha 响应回显答案。生产必须为 False。
     captcha_echo: bool = False
 
+    # 站点对外地址，用于拼接密码重置邮件中的链接。例如 https://wenwenpdf.top:8443
+    app_base_url: str = "http://localhost:3000"
+
     # ===== 轻量监控 =====
     admin_key: str = ""      # 管理面板密钥（空 = 管理接口禁用）
     alert_email: str = ""    # 攻击告警收件邮箱（空 = 发到 Gmail 发件账号）

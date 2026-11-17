@@ -1,13 +1,15 @@
-"""认证路由：注册（邮箱验证）/ 登录 / 图片验证码 / 验证码重发。
+"""认证路由：注册（邮箱验证）/ 登录 / 图片验证码 / 验证码重发 / 忘记密码 / 重置密码。
 
 流程：
-- GET  /api/auth/captcha        图片验证码（登录、注册、重发前必须过）
-- POST /api/auth/register       校验验证码 + 邮箱唯一 → 建号（未验证）→ 发验证码
-- POST /api/auth/verify-email   邮箱验证码校验 → 标记已验证 → 直接发 JWT
-- POST /api/auth/resend         重发验证码（60s 冷却，需图片验证码）
-- POST /api/auth/login          图片验证码 + 密码；未验证邮箱 → 403
+- GET  /api/auth/captcha          图片验证码（登录、注册、重发、忘记密码前必须过）
+- POST /api/auth/register         校验验证码 + 邮箱唯一 → 建号（未验证）→ 发验证码
+- POST /api/auth/verify-email     邮箱验证码校验 → 标记已验证 → 直接发 JWT
+- POST /api/auth/resend           重发验证码（60s 冷却，需图片验证码）
+- POST /api/auth/login            图片验证码 + 密码；未验证邮箱 → 403
+- POST /api/auth/forgot-password  图片验证码 + 邮箱 → 发密码重置链接邮件
+- POST /api/auth/reset-password   重置令牌 + 新密码 → 更新密码
 
-SMTP 未配置时进入开发模式：验证码直接返回给页面（明确标注），流程不受阻。
+SMTP 未配置时进入开发模式：验证码/重置链接直接返回给页面（明确标注），流程不受阻。
 """
 from __future__ import annotations
 
@@ -22,16 +24,24 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.db import User
 from app.db.session import get_db
 from app.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     RegisterRequest,
     RegisterResponse,
+    ResetPasswordRequest,
     ResendRequest,
     TokenResponse,
     VerifyEmailRequest,
 )
 from app.services.captcha import new_captcha, verify_captcha
 from app.services.email_codes import issue, seconds_until_resend, verify as verify_email_code
-from app.services.email_sender import email_configured, send_verification_email
+from app.services.email_sender import (
+    email_configured,
+    send_password_reset_email,
+    send_verification_email,
+)
+from app.services.password_reset import issue as issue_reset_token, verify as verify_reset_token
 
 logger = logging.getLogger(__name__)
 
@@ -151,4 +161,66 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)) ->
     if not user.email_verified:
         raise HTTPException(status.HTTP_403_FORBIDDEN, _UNVERIFIED_MSG)
     record("login", ip=ip, user_id=user.id)
+    return TokenResponse(access_token=create_access_token(str(user.id)))
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(
+    request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)
+) -> ForgotPasswordResponse:
+    """忘记密码：校验图片验证码 + 邮箱存在 → 签发重置令牌 → 发送重置链接邮件。"""
+    _require_captcha(request, req.captcha_id, req.captcha_code)
+
+    email = req.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    # 不暴露邮箱是否已注册（防枚举），统一返回成功
+    if user is None:
+        logger.info("忘记密码：邮箱未注册 email=%s", email)
+        from app.core.config import get_settings
+
+        s = get_settings()
+        return ForgotPasswordResponse(
+            email=email,
+            smtp_configured=email_configured(),
+            dev_reset_url=None,
+        )
+
+    token = issue_reset_token(email)
+    from app.core.config import get_settings
+
+    s = get_settings()
+    reset_url = f"{s.app_base_url.rstrip('/')}/reset?token={token}"
+    sent = send_password_reset_email(email, reset_url)
+    logger.info("忘记密码：重置链接已发送 email=%s sent=%s", email, sent)
+
+    return ForgotPasswordResponse(
+        email=email,
+        smtp_configured=email_configured(),
+        # 开发模式（SMTP 未配置）：重置链接直接返回页面，明确标注
+        dev_reset_url=None if sent else reset_url,
+    )
+
+
+@router.post("/reset-password", response_model=TokenResponse)
+def reset_password(
+    req: ResetPasswordRequest, db: Session = Depends(get_db)
+) -> TokenResponse:
+    """重置密码：校验重置令牌 → 更新密码 → 直接发 JWT（用户已登录态）。"""
+    email = verify_reset_token(req.token)
+    if email is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "重置链接无效或已过期，请重新申请"
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "账号不存在")
+
+    if len(req.new_password) < 6:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "密码至少 6 位")
+
+    user.password_hash = hash_password(req.new_password)
+    db.commit()
+    record("password_reset", user_id=user.id)
+    logger.info("密码已重置 email=%s", email)
     return TokenResponse(access_token=create_access_token(str(user.id)))

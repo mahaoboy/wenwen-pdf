@@ -28,6 +28,24 @@ class ResendRequest(BaseModel):
     captcha_code: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    captcha_id: str
+    captcha_code: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class ForgotPasswordResponse(BaseModel):
+    email: str
+    smtp_configured: bool
+    # 开发模式（SMTP 未配置）：重置链接直接返回页面，明确标注；生产恒为 None
+    dev_reset_url: str | None = None
+
+
 class RegisterResponse(BaseModel):
     email: str
     verification_required: bool

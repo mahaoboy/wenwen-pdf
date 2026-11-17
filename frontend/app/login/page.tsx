@@ -249,17 +249,27 @@ export default function LoginPage() {
                   <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     密码
                   </label>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete={mode === "login" ? "current-password" : "new-password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="至少 6 位"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
-                  />
+                  <div className="flex items-stretch gap-2">
+                    <input
+                      id="password"
+                      type="password"
+                      required
+                      minLength={6}
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="至少 6 位"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    />
+                    {mode === "login" && (
+                      <a
+                        href="/reset"
+                        className="shrink-0 self-center rounded-xl px-3 text-sm font-medium text-accent transition hover:bg-accent/5 hover:underline"
+                      >
+                        忘记密码？
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -319,14 +329,6 @@ export default function LoginPage() {
           <a href="/" className="text-slate-400 transition hover:text-accent">
             ← 返回文问首页
           </a>
-          {mode === "login" && (
-            <>
-              <span className="mx-2 text-slate-300">·</span>
-              <a href="/reset" className="text-slate-400 transition hover:text-accent">
-                忘记密码？
-              </a>
-            </>
-          )}
         </p>
       </div>
     </div>

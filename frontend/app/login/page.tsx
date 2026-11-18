@@ -46,6 +46,7 @@ export default function LoginPage() {
     setNotice("");
     setDevCode(null);
     void refreshCaptcha(); // 切换模式时刷新验证码
+  }
 
   function handleApiError(err: unknown) {
     const message = err instanceof ApiError ? err.message : "操作失败，请稍后重试";

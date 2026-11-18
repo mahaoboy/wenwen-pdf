@@ -186,22 +186,48 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-4 flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={() => void handleResend()}
-                  disabled={loading}
-                  className="text-accent transition hover:underline disabled:opacity-50"
-                >
-                  没收到？重发验证码
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode("register")}
-                  className="text-slate-400 transition hover:text-slate-600"
-                >
-                  返回注册
-                </button>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-stretch gap-2">
+                  <input
+                    id="captcha"
+                    required
+                    maxLength={4}
+                    autoComplete="off"
+                    value={captchaCode}
+                    onChange={(event) => setCaptchaCode(event.target.value.toUpperCase())}
+                    placeholder="输入图片验证码以重发"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm uppercase tracking-widest text-slate-900 outline-none transition placeholder:tracking-normal placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void refreshCaptcha()}
+                    title="点击刷新验证码"
+                    className="shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-accent"
+                  >
+                    {captcha ? (
+                      <img src={captcha.image} alt="图片验证码" className="h-full w-32 object-cover" />
+                    ) : (
+                      <span className="flex h-[46px] w-32 items-center justify-center text-xs text-slate-400">加载中...</span>
+                    )}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => void handleResend()}
+                    disabled={loading}
+                    className="text-accent transition hover:underline disabled:opacity-50"
+                  >
+                    没收到？重发验证码
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("register")}
+                    className="text-slate-400 transition hover:text-slate-600"
+                  >
+                    返回注册
+                  </button>
+                </div>
               </div>
             </>
           ) : (

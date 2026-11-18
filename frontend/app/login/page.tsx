@@ -35,7 +35,8 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (mode !== "verify") void refreshCaptcha();
+    // 所有模式都刷新验证码，确保 resend 时验证码有效
+    void refreshCaptcha();
   }, [mode, refreshCaptcha]);
 
   function switchMode(next: Mode) {
@@ -44,7 +45,7 @@ export default function LoginPage() {
     setError("");
     setNotice("");
     setDevCode(null);
-  }
+    void refreshCaptcha(); // 切换模式时刷新验证码
 
   function handleApiError(err: unknown) {
     const message = err instanceof ApiError ? err.message : "操作失败，请稍后重试";
